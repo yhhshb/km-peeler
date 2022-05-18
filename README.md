@@ -8,7 +8,7 @@ This condition must be satisfied only when items have to be retrieved and a over
 
 The above property can be applied to quickly find symmetric differences of k-mer sets in space that only depends on the size of the difference and not on the size of the involved sets.
 
-### <a name="install"></a>Installation
+## <a name="install"></a>Installation
 
 km-peeler is written in C99 and was tested on both macOS and Linux.
 All dependencies for the main program are already included.
@@ -30,7 +30,7 @@ python3 configure.py <type> <options>
 Calling configure.py generates a header file containing the maximum length of the payload of each bucket.
 Examples:
 
-# Configuring km-peeler for fixed-length sequences (k-mers)
+### Configuring km-peeler for fixed-length sequences (k-mers)
 
 ```sh
 python3 configure.py sequences -a <algorithm> -k <sequence length (number of bases)> -z <z length (number of bases)>
@@ -42,7 +42,7 @@ configures km-peeler for fixed-length sequence storage.
 - syncmers --> option <z> (< <k>) is the length of the z-mers used to define syncmers
 - minimizers --> option <z> is the length of a k-mer's length. This configure km-peeler for storing pairs of k-mers grouped by their minimizers (so sequences of length 2*k-z). Normal minimizers are equivalent to k-mers or syncmers since they have length =k.
 
-# Configuring km-peeler for hashes
+### Configuring km-peeler for hashes
 
 ```sh
 python3 configure.py hashes -l <hash length in bits> -s <number of minimum hashes>
@@ -60,13 +60,13 @@ python3 configure.py hashes -l 64 -s 1000
 ```
 Note that minHash sketches are seen as a very big hash value.
 
-# Configuring km-peeler for variable-length sequences
+### Configuring km-peeler for variable-length sequences
 
 ```sh
 python3 configure.py vla -l <maximum sequence length (number of bases)>
 ```
 
-### <a name="general"></a>General usage
+## <a name="general"></a>General usage
 
 The main executable of km-peeler is called ibltseq with its sub-command `build` expecting a **set** of strings in input.
 Multi-sets of strings can be obtained by calling ibltseq with the subcommands [kmers, minimizers, syncmers].
