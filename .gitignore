@@ -50,3 +50,26 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# python
+*.pyc
+__pycache__/
+
+#macos
+.DS_Store
+
+# IDEs
+.vscode
+
+# configuration header
+compile_options.h
+
+# test results
+tests/covid/results/
+
+# temporary directories
+tmp
+
+# executables
+ibltseq
+cws
