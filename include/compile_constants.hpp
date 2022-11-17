@@ -1,0 +1,6 @@
+#ifndef COMPILE_CONSTANTS_HPP
+#define COMPILE_CONSTANTS_HPP
+
+#define KLEN 31
+
+#endif

@@ -64,12 +64,7 @@ __pycache__/
 # configuration header
 compile_options.h
 
-# test results
-tests/covid/results/
-
-# temporary directories
-tmp
-
 # executables
-ibltseq
-cws
+debug_build/
+build/
+
