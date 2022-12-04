@@ -243,7 +243,7 @@ external_memory_vector<T, sorted>::const_iterator::const_iterator(external_memor
     m_mm_files.reserve(v->m_tmp_files.size());
     /* create the input iterators and make the heap */
     for (uint64_t i = 0; i != v->m_tmp_files.size(); ++i) {
-        m_mm_files[i].emplace_back(v->m_tmp_files.at(i), mm::advice::sequential);
+        m_mm_files.emplace_back(v->m_tmp_files.at(i), mm::advice::sequential);
         m_iterators.emplace_back(m_mm_files[i].data(), m_mm_files[i].data() + m_mm_files[i].size());
         m_idx_heap.push_back(i);
     }

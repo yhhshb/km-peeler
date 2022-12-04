@@ -30,12 +30,12 @@ Pointer mmap(int fd, uint64_t size, int prot)
 {
     static const size_t offset = 0;
     Pointer p = static_cast<Pointer>(::mmap(NULL, size, prot, MAP_SHARED, fd, offset));
-    if (p == MAP_FAILED) throw std::runtime_error("mmap failed");
+    if (p == MAP_FAILED) throw std::runtime_error("[mm::file] mmap failed");
     return p;
 }
 
 template <typename T>
-class file 
+class file
 {
     public:
         class const_iterator 
@@ -51,8 +51,9 @@ class file
         };
 
         file();
-        file(file const&) = delete;             // non-copy-constructable
-        file& operator=(file const&) = delete;  // non-copyable
+        file(file const&);             // non-copy-constructable
+        file& operator=(file const&);  // non-copyable
+        file(file&&) noexcept;
         bool is_open() const;
         const_iterator cbegin() const;
         const_iterator cend() const;
@@ -66,8 +67,11 @@ class file
         int m_fd;
         size_t m_size;
         T* m_data;
-        void init();
+        std::size_t* ref_count;
         void check_fd();
+
+    private:
+        void move(file&) noexcept;
 };
 
 template <typename T>
@@ -98,7 +102,55 @@ class file_sink : public file<T> {
 };
 
 template <typename T>
-file<T>::file() { init(); }
+file<T>::file()
+{
+    m_fd = -1;
+    m_size = 0;
+    m_data = nullptr;
+    ref_count = nullptr;
+}
+
+template <typename T>
+file<T>::file(file const& other)
+{
+    m_fd = other.m_fd;
+    m_size = other.m_size;
+    m_data = other.m_data;
+    ref_count = other.ref_count;
+    if (other.is_open()) {
+        if (ref_count == nullptr) std::runtime_error("[mm::file] file open with invalid ref_count");
+        if (*ref_count == 0) std::runtime_error("[mm::file] file open with ref_count = 0");
+        ++(*ref_count);
+    } else {
+        if (ref_count != nullptr) std::runtime_error("[mm::file] source file closed with valid reference count");
+    }
+}
+
+template <typename T>
+void file<T>::move(file& other) noexcept
+{
+    m_fd = other.m_fd;
+    m_size = other.m_size;
+    m_data = other.m_data;
+    ref_count = other.ref_count;
+    other.m_fd = -1;
+    other.m_size = 0;
+    other.m_data = nullptr;
+    other.ref_count = nullptr;
+}
+
+template <typename T>
+file<T>::file(file&& other) noexcept
+{
+    move(other);
+}
+
+template <typename T>
+file<T>& file<T>::operator=(file const& source)
+{
+    file copy = file(source);
+    move(copy);
+}
 
 template <typename T>
 bool file<T>::is_open() const { return m_fd != -1; }
@@ -119,74 +171,77 @@ template <typename T>
 T* file<T>::data() const { return m_data; }
 
 template <typename T>
-void file<T>::close() 
+void file<T>::close()
 {
     if (is_open()) {
-        if (munmap((char*)m_data, m_size) == -1) throw std::runtime_error("munmap failed when closing file");
-        ::close(m_fd);
-        init();
+        if(ref_count == nullptr or *ref_count == 0) throw std::runtime_error("[mm::file] reference count is already 0 before decrement");
+        --(*ref_count);
+        if (*ref_count == 0) {
+            if (munmap((char*)m_data, m_size) == -1) throw std::runtime_error("[mm::file] munmap failed when closing file");
+            ::close(m_fd);
+            delete ref_count;
+        }
+        m_fd = -1;
+        m_size = 0;
+        m_data = nullptr;
+        ref_count = nullptr;
     }
 }
 
 template <typename T>
-file<T>::~file() { close(); }
-
-template <typename T>
-void file<T>::init() 
+file<T>::~file()
 {
-    m_fd = -1;
-    m_size = 0;
-    m_data = nullptr;
+    close();
 }
 
 template <typename T>
 void file<T>::check_fd() 
 {
-    if (m_fd == -1) throw std::runtime_error("cannot open file");
+    if (m_fd == -1) throw std::runtime_error("[mm::file] cannot open file");
 }
 
 template <typename T>
 void file_source<T>::open(std::string const& path, int adv) 
 {
+    if (base::is_open() or base::ref_count != nullptr) throw std::runtime_error("[mm::file_sink] file already open");
     base::m_fd = ::open(path.c_str(), O_RDONLY);
     base::check_fd();
     struct stat fs;
-    if (fstat(base::m_fd, &fs) == -1) {
-        throw std::runtime_error("cannot stat file");
-    }
+    if (fstat(base::m_fd, &fs) == -1) throw std::runtime_error("[mm::file] cannot stat file");
     base::m_size = fs.st_size;
     base::m_data = mmap<T const*>(base::m_fd, base::m_size, PROT_READ);
-    if (posix_madvise((void*)base::m_data, base::m_size, adv)) {
-        throw std::runtime_error("madvise failed");
-    }
+    if (posix_madvise((void*)base::m_data, base::m_size, adv)) throw std::runtime_error("[mm::file] madvise failed");
+    base::ref_count = new std::size_t;
+    *base::ref_count = 1;
 }
 
 template <typename T>
 void file_sink<T>::open(std::string const& path) 
 {
+    if (base::is_open() or base::ref_count != nullptr) throw std::runtime_error("[mm::file_sink (simple mode)] file already open");
     static const mode_t mode = 0600;  // read/write
     base::m_fd = ::open(path.c_str(), O_RDWR, mode);
     base::check_fd();
     struct stat fs;
-    if (fstat(base::m_fd, &fs) == -1) {
-        throw std::runtime_error("cannot stat file");
-    }
+    if (fstat(base::m_fd, &fs) == -1) throw std::runtime_error("[mm::file] cannot stat file");
     base::m_size = fs.st_size;
-    base::m_data =
-        mmap<T*>(base::m_fd, base::m_size, PROT_READ | PROT_WRITE);
+    base::m_data = mmap<T*>(base::m_fd, base::m_size, PROT_READ | PROT_WRITE);
+    base::ref_count = new std::size_t;
+    *base::ref_count = 1;
 }
 
 template <typename T>
 void file_sink<T>::open(std::string const& path, size_t n) 
 {
+    if (base::is_open() or base::ref_count != nullptr) throw std::runtime_error("[mm::file_sink (create mode)] file already open");
     static const mode_t mode = 0600;  // read/write
     base::m_fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, mode);
     base::check_fd();
     base::m_size = n * sizeof(T);
-    ftruncate(base::m_fd,
-            base::m_size);  // truncate the file at the new size
-    base::m_data =
-        mmap<T*>(base::m_fd, base::m_size, PROT_READ | PROT_WRITE);
+    ftruncate(base::m_fd, base::m_size);  // truncate the file at the new size
+    base::m_data = mmap<T*>(base::m_fd, base::m_size, PROT_READ | PROT_WRITE);
+    base::ref_count = new std::size_t;
+    *base::ref_count = 1;
 }
 
 } // namespace mm

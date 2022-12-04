@@ -41,6 +41,7 @@ FetchContent_MakeAvailable(argparse)
 
 set(LPHASH_SOURCES
   src/build.cpp
+  src/kmer_view.cpp
   # src/IBLT.cpp
   # src/iterators.cpp
   # src/MurmurHash3.cpp
