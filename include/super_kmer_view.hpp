@@ -14,7 +14,7 @@ class super_kmer_view
     public:
         typedef typename minimizer_view<KmerType, MinimizerType, HashFunction> mm_view_type;
 
-        class const_iterator : public std::iterator<std::forward_iterator_tag, MinimizerType>
+        class const_iterator
         {
             public:
                 struct super_kmer_t {
@@ -22,15 +22,17 @@ class super_kmer_view
                     uint8_t mm_pos;         // position of the minimizer in the first k-mer
                     uint8_t size;           // super k-mer size (number of k-mers)
                 };
-                typedef super_kmer_t value_type;
+                using iterator_category = std::forward_iterator_tag;
+                using difference_type   = std::ptrdiff_t;
+                using value_type        = super_kmer_t;
+                using pointer           = value_type*;
+                using reference         = value_type&;
 
                 const_iterator(super_kmer_view const* view);
+                const_iterator(super_kmer_view const* view, int dummy_end);
                 super_kmer_t const& operator*() const;
                 const_iterator const& operator++();
                 const_iterator operator++(int);
-            
-            protected:
-                const_iterator(super_kmer_view const* view, int dummy_end);
 
             private:
                 super_kmer_view const* parent_view;
@@ -129,13 +131,14 @@ super_kmer_view<KmerType, MinimizerType, HashFunction>::const_iterator::operator
     if ((next_idx - prev_idx) > (2 * parent_view->get_k() - m + 1)) throw std::runtime_error("Bases different than ACGT are not yet supported");
     current_sk.mm_pos = current_sk.minimizer.mm_idx - prev_idx; // position of minimizer in first k-mer of the super k-mer
     current_sk.size = next_idx - prev_idx - parent_view->get_k() + 1; // number of k-mers in super k-mer
+    return *this;
 }
 
 template <typename KmerType, typename MinimizerType, typename HashFunction>
 super_kmer_view<KmerType, MinimizerType, HashFunction>::const_iterator
 super_kmer_view<KmerType, MinimizerType, HashFunction>::const_iterator::operator++(int)
 {
-    super_kmer_t res = *this;
+    auto res = *this;
     operator++();
     return res;
 }

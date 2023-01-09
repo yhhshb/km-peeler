@@ -58,10 +58,15 @@ template <typename T, bool sorted = true>
 class external_memory_vector : public std::conditional<sorted, sorted_base<T>, unsorted_base<T>>::type 
 {
     public:
-        class const_iterator : std::forward_iterator_tag 
+        class const_iterator
         {
             public:
-                typedef T value_type;
+                using iterator_category = std::forward_iterator_tag;
+                using difference_type   = std::ptrdiff_t;
+                using value_type        = T;
+                using pointer           = value_type*;
+                using reference         = value_type&;
+                
                 const_iterator();
                 const_iterator(external_memory_vector<T, sorted> const* vec);
                 T const& operator*() const;

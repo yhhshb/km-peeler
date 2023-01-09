@@ -35,3 +35,4 @@ int main(int argc, char *argv[])
 }
 
 // cmake .. -D CMAKE_BUILD_TYPE=Debug -D KMP_USE_SANITIZERS=On
+// make -p

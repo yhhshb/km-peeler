@@ -9,7 +9,7 @@ template <typename KmerType, typename MinimizerType, typename HashFunction>
 class minimizer_view
 {
     public:
-        class const_iterator : public std::iterator<std::forward_iterator_tag, MinimizerType>
+        class const_iterator
         {
             public:
                 struct minimizer_t {
@@ -17,17 +17,19 @@ class minimizer_view
                     uint32_t mm_idx;         // minimizer index in contig
                     uint32_t id;             // minimizer id in contig
                 };
-                typedef minimizer_t value_type;
+                using iterator_category = std::forward_iterator_tag;
+                using difference_type   = std::ptrdiff_t;
+                using value_type        = minimizer_t;
+                using pointer           = value_type*;
+                using reference         = value_type&;
 
                 const_iterator(minimizer_view const* view);
+                const_iterator(minimizer_view const* view, int dummy_end);
                 minimizer_t const& operator*() const noexcept;
                 const_iterator const& operator++();
                 const_iterator operator++(int);
                 std::size_t break_offset() const noexcept;
             
-            protected:
-                const_iterator(minimizer_view const* view, int dummy_end);
-
             private:
                 class window
                 {

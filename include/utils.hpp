@@ -6,8 +6,8 @@
 
 namespace kmp {
 
-template <typename IntegerType>
-IntegerType ceil(IntegerType x, IntegerType y)
+template <typename IntegerType1, typename IntegerType2>
+IntegerType1 ceil_size(IntegerType1 x, IntegerType2 y)
 {
     return (x + y - 1) / y;
 }

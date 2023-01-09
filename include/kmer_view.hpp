@@ -12,19 +12,21 @@ template <typename KmerType>
 class kmer_view
 {
     public:
-        class const_iterator : public std::iterator<std::forward_iterator_tag, KmerType>
+        class const_iterator
         {
             public:
-                typedef KmerType value_type;
+                using iterator_category = std::forward_iterator_tag;
+                using difference_type   = std::ptrdiff_t;
+                using value_type        = std::optional<KmerType>; // This is not true, since we are returning optionals
+                using pointer           = value_type*;
+                using reference         = value_type&;
 
                 const_iterator(kmer_view const* view) noexcept;
+                const_iterator(kmer_view const* view, int dummy_end) noexcept;
                 std::optional<KmerType> const& operator*() const noexcept;
                 const_iterator const& operator++();
                 const_iterator operator++(int);
             
-            protected:
-                const_iterator(kmer_view const* view, int dummy_end) noexcept;
-
             private:
                 kmer_view const* parent_view;
                 std::size_t char_idx;
@@ -33,6 +35,7 @@ class kmer_view
                 KmerType kmer_buffer[2];
                 uint8_t strand;
                 std::size_t bases_since_last_break;
+                const std::optional<KmerType> null_value;
                 void find_first_good_kmer();
                 friend bool operator==(const_iterator const& a, const_iterator const& b);
                 friend bool operator!=(const_iterator const& a, const_iterator const& b);
@@ -64,15 +67,15 @@ kmer_view<KmerType>::kmer_view(std::string const& contig, uint8_t k, bool canoni
 {}
 
 template <typename KmerType>
-kmer_view<KmerType>::const_iterator kmer_view<KmerType>::cbegin() const
+typename kmer_view<KmerType>::const_iterator kmer_view<KmerType>::cbegin() const
 {
     return const_iterator(this);
 }
 
 template <typename KmerType>
-kmer_view<KmerType>::const_iterator kmer_view<KmerType>::cend() const noexcept
+typename kmer_view<KmerType>::const_iterator kmer_view<KmerType>::cend() const noexcept
 {
-    return const_iterator();
+    return const_iterator(this, 0);
 }
 
 template <typename KmerType>
@@ -84,13 +87,13 @@ uint8_t kmer_view<KmerType>::get_k() const noexcept
 //---------------------------------------------------------------------------------------------------------------------------------------------------
 
 template <typename KmerType>
-kmer_view<KmerType>::const_iterator::const_iterator(kmer_view const* view, int dummy_end) noexcept
-    : parent_view(view), char_idx(view->slen), strand(0), bases_since_last_break(0) 
+kmer_view<KmerType>::const_iterator::const_iterator(kmer_view const* view, [[maybe_unused]] int dummy_end) noexcept
+    : parent_view(view), char_idx(view->slen), strand(0), bases_since_last_break(0), null_value(std::nullopt)
 {}
 
 template <typename KmerType>
 kmer_view<KmerType>::const_iterator::const_iterator(kmer_view const* view) noexcept
-    : parent_view(view), char_idx(0), strand(0), bases_since_last_break(0)
+    : parent_view(view), char_idx(0), strand(0), bases_since_last_break(0), null_value(std::nullopt)
 {
     mask = (KmerType(1) << (2 * parent_view->klen)) - 1;
     find_first_good_kmer();
@@ -99,12 +102,12 @@ kmer_view<KmerType>::const_iterator::const_iterator(kmer_view const* view) noexc
 template <typename KmerType>
 std::optional<KmerType> const& kmer_view<KmerType>::const_iterator::operator*() const noexcept
 {
-    if (bases_since_last_break == 0) return std::nullopt;
+    if (bases_since_last_break == 0) return null_value;
     return kmer_buffer.at(strand);
 }
 
 template <typename KmerType>
-kmer_view<KmerType>::const_iterator const& 
+typename kmer_view<KmerType>::const_iterator const& 
 kmer_view<KmerType>::const_iterator::operator++()
 {
     assert(parent_view);
@@ -128,7 +131,7 @@ kmer_view<KmerType>::const_iterator::operator++()
 }
 
 template <typename KmerType>
-kmer_view<KmerType>::const_iterator 
+typename kmer_view<KmerType>::const_iterator 
 kmer_view<KmerType>::const_iterator::operator++(int)
 {
     auto res = *this;

@@ -41,6 +41,12 @@ class file
         class const_iterator 
         {
             public:
+                using iterator_category = std::forward_iterator_tag;
+                using difference_type   = std::ptrdiff_t;
+                using value_type        = T;
+                using pointer           = value_type*;
+                using reference         = value_type&;
+
                 const_iterator(T* addr, size_t offset = 0) : m_ptr(addr + offset) {}
                 T operator*() { return *m_ptr; }
                 void operator++() { ++m_ptr; }
