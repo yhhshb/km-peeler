@@ -80,11 +80,6 @@ class loader
         size_t num_bytes_vecs_of_pods;
 };
 
-loader::loader(std::istream& strm) : istrm(strm), num_bytes_pods(0), num_bytes_vecs_of_pods(0)
-{
-    if (!istrm.good()) throw std::runtime_error("[Loader] Unreadable input stream");
-}
-
 /*
  * The method is intended to be used by classes implementing a visit method.
  * The amount of bytes read is also saved, extending the functionality of the load() functions. 
@@ -117,7 +112,7 @@ void loader::apply(std::vector<T, Allocator>& vec)
         for (auto& v : vec) apply(v); // Call apply(), not load() since we want to recursively count the number of bytes
         // [[maybe unused]] load(vec);
     }
-}
+} 
 
 //-------------------------------------------------------------------------------------------------------------------------------
 
@@ -137,11 +132,6 @@ class saver
     private:
         std::ostream& ostrm;
 };
-
-saver::saver(std::ostream& output_stream) : ostrm(output_stream)
-{
-    if (!ostrm.good()) throw std::runtime_error("[Saver] Unreadable input stream");
-}
 
 template <typename T>
 void saver::apply(T& var) 

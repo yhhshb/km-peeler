@@ -41,11 +41,16 @@ FetchContent_MakeAvailable(argparse)
 
 set(LPHASH_SOURCES
   src/build.cpp
-  # src/IBLT.cpp
-  # src/iterators.cpp
-  # src/MurmurHash3.cpp
-  # src/utils.cpp
+  src/diff.cpp
+  src/io.cpp
+  src/hash.cpp
+  src/MurmurHash3.cpp
+  src/IBLT.cpp
+  src/utils.cpp
 )
 
 add_executable(kmp src/kmp.cpp ${LPHASH_SOURCES})
 target_link_libraries(kmp argparse z)
+
+add_executable(emv_test tests/emv.cpp)
+target_link_libraries(emv_test argparse)

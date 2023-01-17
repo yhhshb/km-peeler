@@ -1,13 +1,17 @@
-#include "IBLT.hpp"
-#include "hash.hpp"
-#include "utils.hpp"
+#include "../include/IBLT.hpp"
+
 #include <cmath>
+#include "../include/io.hpp"
+#include "../include/utils.hpp"
 
 namespace kmp {
 
 #ifndef NDEBUG
 const std::array<uint8_t, 8> left_align_mask = {0x00, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE};
 #endif
+
+IBLT::IBLT() : klen(0), reps(0), eps(0), max_diff(0), pseed(0), hrc_bit_size(0), prefix_len(0), mask(0), number_of_inserted_items(0)
+{}
 
 IBLT::IBLT(uint8_t k, uint8_t r, double epsilon, uint64_t n, uint64_t seed = 42) 
     : 
@@ -29,9 +33,7 @@ IBLT::IBLT(uint8_t k, uint8_t r, double epsilon, uint64_t n, uint64_t seed = 42)
     bucket_size = kmp::ceil_size(2ULL * klen + hrc_bit_size, 8); // hash and payload packed together;
     counts.resize(kmp::ceil_size(number_of_buckets, 4)); // 4 count values in each byte
     hp_buckets.resize(number_of_buckets * bucket_size);
-    std::size_t hrc_byte_size = kmp::ceil_size(hrc_bit_size, 8);
-    hash_redundancy_code_buffer.resize(hrc_byte_size);
-    payload_buffer.resize(kmp::ceil_size(2ULL * klen, 8));
+    resize_buffers();
 }
 
 void IBLT::insert(uint8_t const * const kmer, std::size_t kmer_byte_size) noexcept
@@ -60,6 +62,15 @@ void IBLT::remove(uint8_t const * const kmer, std::size_t kmer_byte_size) noexce
 
 void IBLT::subtract(IBLT const& other)
 {
+    auto subtract_count_bytes = [](uint8_t a, uint8_t b) {
+        uint8_t diff = 0;
+        for (uint8_t i = 0; i < 4; ++i) {
+            diff |= ((uint8_t(a & 0x03) - uint8_t(b & 0x03)) & 0x03) << (2*i);
+            a >>= 2;
+            b >>= 2;
+        }
+        return diff;
+    };
     constexpr bool hashers_equality = std::is_same<decltype(hasher), decltype(other.hasher)>::value;
     if (
         klen != other.klen or
@@ -73,36 +84,56 @@ void IBLT::subtract(IBLT const& other)
     ) throw std::runtime_error("[IBLT::subtract] Incompatible IBLTs");
 
     for (std::size_t i = 0; i < hp_buckets.size(); ++i) hp_buckets[i] ^= other.hp_buckets[i]; // FIXME optimize
-    // TODO how to efficiently subtract count remainders ?
+    for (std::size_t i = 0; i < counts.size(); ++i) counts[i] = subtract_count_bytes(counts.at(i), other.counts.at(i)); // FIXME optimize
 
-    std::fill(std::begin(payload_buffer), std::end(payload_buffer), 0);
+    std::fill(std::begin(payload_buffer), std::end(payload_buffer), 0); // reset buffers, just to be sure
     std::fill(std::begin(hash_redundancy_code_buffer), std::end(hash_redundancy_code_buffer), 0);
-
     if (number_of_inserted_items >= other.number_of_inserted_items) number_of_inserted_items -= other.number_of_inserted_items;
     else number_of_inserted_items = other.number_of_inserted_items - number_of_inserted_items;
 }
 
-IBLT::failure_t IBLT::list(std::vector<std::vector<uint8_t>>& res) noexcept
-{
+IBLT::failure_t IBLT::list(std::vector<std::vector<uint8_t>>& positives, std::vector<std::vector<uint8_t>>& negatives)
+{ // FIXME carefully check for errors during peeling
     idx_stack_t peelable_idx_stack;
     std::size_t tmp;
-    while ((tmp = find_peelable_bucket()) != number_of_buckets && res.size() < number_of_inserted_items + 1) {
+    const std::size_t peeling_bound = 2 * max_diff;
+    while (
+        (tmp = find_peelable_bucket()) != number_of_buckets and 
+        (positives.size() + negatives.size()) < peeling_bound) // FIXME
+    {
         peelable_idx_stack.push(tmp);
         while (not peelable_idx_stack.empty()) {
             auto idx = peelable_idx_stack.top();
             peelable_idx_stack.pop();
-            res.push_back(get_payload(idx));
-            peel(res.back().data(), res.size(), idx, peelable_idx_stack);
+            unpack_at(idx);
+            if (idx >= 0) positives.push_back(payload_buffer);
+            else negatives.push_back(payload_buffer);
+            peel(payload_buffer.data(), payload_buffer.size(), idx, peelable_idx_stack);
         }
     }
-    if (res.size() > number_of_inserted_items) return INFINITE_LOOP;
-    if (res.size() < number_of_inserted_items) return UNPEELABLE;
+    std::size_t peeled_count = positives.size() + negatives.size();
+    if (peeled_count >= peeling_bound) return INFINITE_LOOP;
+    if (peeled_count < peeling_bound) return UNPEELABLE;
     return NONE;
+}
+
+IBLT::failure_t IBLT::list(std::size_t& positive_size, std::size_t& negative_size) 
+{
+    std::vector<std::vector<uint8_t>> p, n;
+    auto ret = list(p, n);
+    positive_size = p.size();
+    negative_size = n.size();
+    return ret;
 }
 
 std::size_t IBLT::size() const noexcept
 {
     return number_of_inserted_items;
+}
+
+uint8_t IBLT::get_k() const noexcept
+{
+    return klen;
 }
 
 void IBLT::inc_count_at(std::size_t idx) noexcept
@@ -125,6 +156,13 @@ void IBLT::update_count_at(std::size_t idx, std::function<uint8_t(uint8_t)> op) 
     c = op(c);
     c &= 0x03;
     counts[byte_idx] |= c << shift;
+}
+
+void IBLT::resize_buffers()
+{
+    std::size_t hrc_byte_size = kmp::ceil_size(hrc_bit_size, 8);
+    hash_redundancy_code_buffer.resize(hrc_byte_size);
+    payload_buffer.resize(kmp::ceil_size(2ULL * klen, 8));
 }
 
 uint8_t IBLT::get_count_at(std::size_t idx) const noexcept
@@ -197,7 +235,7 @@ std::size_t IBLT::find_peelable_bucket() noexcept
 
 std::vector<uint8_t> IBLT::get_payload(std::size_t idx) noexcept
 {
-    [[maybe_unused]] unpack_at(idx);
+    unpack_at(idx);
     return payload_buffer;
 }
 
@@ -213,10 +251,32 @@ void IBLT::peel(uint8_t const * const kmer, std::size_t kmer_byte_size, std::siz
     }
 }
 
+IBLT load(std::string filename, std::size_t& byte_size)
+{
+    IBLT iblt;
+    byte_size = io::load(iblt, filename);
+    iblt.resize_buffers();
+    return iblt;
+}
+
 std::ostream& operator<<(std::ostream& os, const IBLT& obj)
 {
     // write obj to stream
     return os;
+}
+
+std::ostream& operator<<(std::ostream& os, IBLT::failure_t const& err)
+{
+    switch(err) {
+        case IBLT::UNPEELABLE:
+            os << "None";
+            break;
+        case IBLT::INFINITE_LOOP:
+            os << "inf";
+            break;
+        default:
+            throw std::runtime_error("[Formatting] Unrecognized IBLT error code");
+    }
 }
 
 }

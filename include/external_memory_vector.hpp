@@ -20,7 +20,8 @@ class append_iterator
     public:
         typedef typename ItrType::value_type value_type;
 
-        append_iterator(std::vector<std::pair<ItrType, ItrType>>& start_end) : i(0), iterators(start_end) 
+        append_iterator(std::vector<std::pair<ItrType, ItrType>>& start_end) 
+            : i(0), iterators(start_end) 
         {}
 
         void operator++() 
@@ -152,7 +153,8 @@ external_memory_vector<T, sorted>::external_memory_vector(
 template <typename T, bool sorted>
 template <bool s>
 external_memory_vector<T, sorted>::external_memory_vector(
-    typename std::enable_if<s, uint64_t>::type available_space_bytes, std::string tmp_dir,
+    typename std::enable_if<s, uint64_t>::type available_space_bytes, 
+    std::string tmp_dir, 
     std::string name
 ) : sorted_base<T>([](T const& a, T const& b) { return a < b; })
   , m_total_elems(0)
@@ -165,7 +167,8 @@ external_memory_vector<T, sorted>::external_memory_vector(
 template <typename T, bool sorted>
 template <bool s>
 external_memory_vector<T, sorted>::external_memory_vector(
-    typename std::enable_if<!s, uint64_t>::type available_space_bytes, std::string tmp_dir,
+    typename std::enable_if<!s, uint64_t>::type available_space_bytes, 
+    std::string tmp_dir, 
     std::string name)
     : m_total_elems(0), m_tmp_dirname(tmp_dir), m_prefix(name) 
 {
@@ -173,17 +176,19 @@ external_memory_vector<T, sorted>::external_memory_vector(
 }
 
 template <typename T, bool sorted>
-void external_memory_vector<T, sorted>::init(uint64_t available_space_bytes) 
+void 
+external_memory_vector<T, sorted>::init(uint64_t available_space_bytes) 
 {
     m_buffer_size = available_space_bytes / sizeof(T) + 1;
     m_buffer.reserve(m_buffer_size);
 }
 
 template <typename T, bool sorted>
-void external_memory_vector<T, sorted>::push_back(T const& elem) 
+void 
+external_memory_vector<T, sorted>::push_back(T const& elem) 
 {
     // for optimal memory management in the general case one should try to reload the last tmp file if it isn't full
-    m_buffer.reserve(m_buffer_size);
+    m_buffer.reserve(m_buffer_size); // does nothing if enough space
     m_buffer.push_back(elem);
     ++m_total_elems;
     if (m_buffer.size() >= m_buffer_size) sort_and_flush();
@@ -200,13 +205,15 @@ external_memory_vector<T, sorted>::cbegin()
 }
 
 template <typename T, bool sorted>
-typename external_memory_vector<T, sorted>::const_iterator external_memory_vector<T, sorted>::cend() const 
+typename external_memory_vector<T, sorted>::const_iterator 
+external_memory_vector<T, sorted>::cend() const 
 {
     return const_iterator();
 }
 
 template <typename T, bool sorted>
-std::size_t external_memory_vector<T, sorted>::size() const 
+std::size_t 
+external_memory_vector<T, sorted>::size() const 
 {
     return m_total_elems;
 }
@@ -218,7 +225,8 @@ external_memory_vector<T, sorted>::~external_memory_vector()
 }
 
 template <typename T, bool sorted>
-void external_memory_vector<T, sorted>::sort_and_flush() 
+void 
+external_memory_vector<T, sorted>::sort_and_flush() 
 {
     if constexpr (sorted) std::sort(m_buffer.begin(), m_buffer.end(), sorted_base<T>::m_sorter);
     m_tmp_files.push_back(get_tmp_output_filename(m_tmp_files.size()));
@@ -228,7 +236,8 @@ void external_memory_vector<T, sorted>::sort_and_flush()
 }
 
 template <typename T, bool sorted>
-std::string external_memory_vector<T, sorted>::get_tmp_output_filename(uint64_t id) const 
+std::string 
+external_memory_vector<T, sorted>::get_tmp_output_filename(uint64_t id) const 
 {
     std::stringstream filename;
     filename << m_tmp_dirname << "/tmp.run";
@@ -263,25 +272,30 @@ external_memory_vector<T, sorted>::const_iterator::const_iterator()
 {}
 
 template <typename T, bool sorted>
-T const& external_memory_vector<T, sorted>::const_iterator::operator*() const 
+T const& 
+external_memory_vector<T, sorted>::const_iterator::operator*() const 
 {
-    return *m_iterators[m_idx_heap.front()];
+    if constexpr (sorted) return *m_iterators[m_idx_heap.front()];
+    else return *m_iterators[m_idx_heap.back()];
 }
 
 template <typename T, bool sorted>
-void external_memory_vector<T, sorted>::const_iterator::operator++() 
+void 
+external_memory_vector<T, sorted>::const_iterator::operator++() 
 {
     advance_heap_head();
 }
 
 template <typename T, bool sorted>
-bool external_memory_vector<T, sorted>::const_iterator::operator==(const_iterator const& other) const 
+bool 
+external_memory_vector<T, sorted>::const_iterator::operator==(const_iterator const& other) const 
 {
     return m_idx_heap.size() == other.m_idx_heap.size();  // TODO make it a little bit stronger
 }
 
 template <typename T, bool sorted>
-bool external_memory_vector<T, sorted>::const_iterator::operator!=(const_iterator const& other) const 
+bool 
+external_memory_vector<T, sorted>::const_iterator::operator!=(const_iterator const& other) const 
 {
     return !(operator==(other));
 }

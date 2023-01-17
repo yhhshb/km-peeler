@@ -1,5 +1,5 @@
-#ifndef MAINS_HPP
-#define MAINS_HPP
+#ifndef BUILD_HPP
+#define BUILD_HPP
 
 #include <argparse/argparse.hpp>
 
@@ -10,4 +10,4 @@ int build_main(const argparse::ArgumentParser& parser);
 
 } // namespace kmp
 
-#endif // MAINS_HPP
+#endif // BUILD_HPP

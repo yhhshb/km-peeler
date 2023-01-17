@@ -14,6 +14,8 @@ IntegerType1 ceil_size(IntegerType1 x, IntegerType2 y)
 
 void shift_byte_vec(uint8_t* dst, uint8_t* src, std::size_t size, uint8_t shift);
 
+std::string vec2kmer(std::vector<uint8_t> const& packed, uint8_t k);
+
 } // namespace kmp
 
 #endif // UTILS_HPP

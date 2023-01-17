@@ -32,8 +32,14 @@ class ordered_unique_sampler
                 ordered_unique_sampler const& parent_sampler;
                 Iterator itr_start;
                 value_type buffer;
-                friend bool operator==(const_iterator const& a, const_iterator const& b);
-                friend bool operator!=(const_iterator const& a, const_iterator const& b);
+                friend bool operator==(const_iterator const& a, const_iterator const& b) 
+                {
+                    bool same_range = (a.parent_sampler.itr_start == b.parent_sampler.itr_start and a.parent_sampler.itr_stop == b.parent_sampler.itr_stop);
+                    bool same_start = a.itr_start == b.itr_start;
+                    return same_range and same_start;
+                };
+
+                friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
         };
 
         ordered_unique_sampler(Iterator const& start, Iterator const& stop);

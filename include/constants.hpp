@@ -16,6 +16,8 @@ const std::array<uint8_t, 256> seq_nt4_table = {
     4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
 };
 
+const std::array<char, 4> bases = {'A', 'C', 'G', 'T'};
+
 template<typename R, typename... A>
 R ret(R(*)(A...));
 

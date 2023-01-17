@@ -1,6 +1,9 @@
 #ifndef HASH_HPP
 #define HASH_HPP
 
+#include <cstddef>
+#include <optional>
+#include <array>
 #include "MurmurHash3.hpp"
 
 namespace hash {
@@ -45,24 +48,18 @@ class hash64
         double_hash64 hasher;
 };
 
-class mm_pos_extractor {
+class minimizer_position_extractor
+{
     public:
-        std::size_t operator()(uint64_t kmer) {
-            uint64_t mval = hasher(kmer & mask, 0);
-            uint8_t minpos = 0;
-            for (std::size_t i = 0; i < k - m + 1; ++i) {
-                auto val = hasher(kmer & mask, 0);
-                if (mval >= val) {
-                    mval = val;
-                    minpos = i;
-                }
-                kmer >>= 2;
-            }
-            return k - m - minpos; // TODO check correctness
-        }
+        using value_type = uint64_t;
+        minimizer_position_extractor(uint8_t k, uint8_t m);
+        std::size_t operator()(std::optional<uint64_t> kmer) const noexcept;
+        uint8_t get_k() const noexcept;
+        uint8_t get_m() const noexcept;
+
     private:
-        uint8_t k;
-        uint8_t m;
+        uint8_t klen;
+        uint8_t mlen;
         uint64_t mask;
         hash64 hasher;
 };
