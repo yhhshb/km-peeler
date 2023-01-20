@@ -23,19 +23,22 @@ class IBLT
         failure_t list(std::size_t& positive_size, std::size_t& negative_size);
         std::size_t size() const noexcept;
         uint8_t get_k() const noexcept;
-        template <class Visitor> void visit(Visitor const& visitor);
+        void print_config(std::ostream& os) const noexcept;
+        template <class Visitor> void visit(Visitor& visitor);
 
     private:
-        typedef std::stack<std::size_t, std::vector<std::size_t>> idx_stack_t;
+        typedef std::stack<long long, std::vector<long long>> idx_stack_t;
         const std::array<float, 8> ck_table = {0, 0, 0, 1.222, 1.295, 1.425, 1.570, 1.721};
-        const uint8_t klen;
-        const uint8_t reps;
-        const double eps;
-        const uint64_t max_diff;
-        const uint64_t pseed;
-        const uint16_t hrc_bit_size;
-        const std::size_t prefix_len;
-        const uint8_t mask;
+        //const removed since we need loading
+        uint8_t klen;
+        uint8_t reps;
+        double eps;
+        uint64_t max_diff;
+        uint64_t pseed;
+        uint16_t hrc_bit_size;
+        std::size_t prefix_len;
+        uint8_t mask;
+        // end const block
         std::size_t number_of_inserted_items;
         uint64_t number_of_buckets;
         uint32_t bucket_size;
@@ -53,17 +56,17 @@ class IBLT
         void dec_count_at(std::size_t idx) noexcept;
         void xor_at(std::size_t idx, uint8_t const * const kmer, uint64_t header) noexcept;
         std::size_t unpack_at(std::size_t idx) noexcept;
-        bool is_peelable(std::size_t idx) noexcept;
-        std::size_t find_peelable_bucket() noexcept;
+        int is_peelable(std::size_t idx) noexcept;
+        long long find_peelable_bucket() noexcept;
         std::vector<uint8_t> get_payload(std::size_t idx) noexcept;
-        void peel(uint8_t const * const kmer, std::size_t kmer_byte_size, std::size_t origin_bucket, idx_stack_t& idxs);
+        void peel(uint8_t const * const kmer, std::size_t kmer_byte_size, std::size_t origin_bucket, std::function<uint8_t(uint8_t)>, idx_stack_t& idxs);
 
         friend IBLT load(std::string filename, std::size_t& byte_size);
         friend std::ostream& operator<<(std::ostream& os, IBLT const& obj);
 };
 
 template <class Visitor>
-void IBLT::visit(Visitor const& visitor)
+void IBLT::visit(Visitor& visitor)
 {
     visitor.apply(klen);
     visitor.apply(reps);

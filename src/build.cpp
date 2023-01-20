@@ -15,6 +15,7 @@ extern "C" {
 #include "../include/hash.hpp"
 #include "../include/io.hpp"
 #include "../include/IBLT.hpp"
+#include "../include/utils.hpp"
 
 KSEQ_INIT(gzFile, gzread)
 
@@ -29,7 +30,6 @@ int build_main(const argparse::ArgumentParser& args)
     std::string output_filename = args.get<std::string>("output_filename");
     uint64_t n = args.get<uint64_t>("-n");
     uint8_t k = args.get<uint8_t>("-k");
-    std::cerr << args.get<uint8_t>("-k") << std::endl;
     uint8_t z = args.get<uint8_t>("-z");
     uint8_t offset = args.get<uint8_t>("--offset");
     uint8_t r = args.get<uint8_t>("--repetitions");
@@ -54,14 +54,8 @@ int build_main(const argparse::ArgumentParser& args)
     if ((fp = gzopen(input_filename.c_str(), "r")) == NULL) throw std::runtime_error("Unable to open the input file " + input_filename + "\n");
     seq = kseq_init(fp);
 
-    std::ofstream logger("log.txt");
     while (kseq_read(seq) >= 0) {
         wrapper::kmer_view<kmer_t> view(seq->seq.s, seq->seq.l, k);
-        // for (auto it = view.cbegin(); it != view.cend(); ++it) {
-        //     if (*it) logger << **it << "\n";
-        //     else logger << "break\n";
-        // }
-        // std::cerr << "[view] mask = " << view.cbegin().get_mask() << std::endl;
         sampler::syncmer_sampler syncmers(view.cbegin(), view.cend(), mmp_extractor, offset);
         for (auto itr = syncmers.cbegin(); itr != syncmers.cend(); ++itr) {
             kmer_vector.push_back(*itr);
@@ -70,13 +64,16 @@ int build_main(const argparse::ArgumentParser& args)
     if (seq) kseq_destroy(seq);
     gzclose(fp);
 
-    // IBLT iblt(k, r, epsilon, n, seed);
-    // sampler::ordered_unique_sampler unique_kmers(kmer_vector.cbegin(), kmer_vector.cend());
-    // for (auto itr = unique_kmers.cbegin(); itr != unique_kmers.cend(); ++itr) {
-    //     iblt.insert(reinterpret_cast<uint8_t const * const>(&(*itr)), sizeof(*itr));
-    // }
+    IBLT iblt(k, r, epsilon, n, seed);
+    sampler::ordered_unique_sampler unique_kmers(kmer_vector.cbegin(), kmer_vector.cend());
+    for (auto itr = unique_kmers.cbegin(); itr != unique_kmers.cend(); ++itr) {
+        auto val = *itr;
+        auto vptr = reinterpret_cast<uint8_t*>(&val);
+        kmp::little2big(vptr, sizeof(val));
+        iblt.insert(vptr, sizeof(val)); // FIXME hide endian check inside insert
+    }
 
-    // std::cerr << "Written IBLT of " << io::store(iblt, output_filename) << " Bytes\n";
+    std::cerr << "Written IBLT of " << io::store(iblt, output_filename) << " Bytes\n";
 
     return 0;
 }

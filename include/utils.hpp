@@ -16,6 +16,10 @@ void shift_byte_vec(uint8_t* dst, uint8_t* src, std::size_t size, uint8_t shift)
 
 std::string vec2kmer(std::vector<uint8_t> const& packed, uint8_t k);
 
+void print_byte_vec(std::ostream& os, uint8_t const * const v, std::size_t vlen);
+
+void little2big(uint8_t* val_bytes, std::size_t val_size);
+
 } // namespace kmp
 
 #endif // UTILS_HPP

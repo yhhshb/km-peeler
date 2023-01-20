@@ -128,7 +128,7 @@ kmer_view<KmerType>::const_iterator::operator++()
     // if (char_idx == parent_view->slen) parent_view = nullptr;
     if (c < 4) {
         kmer_buffer[0] = (kmer_buffer[0] << 2 | c) & mask;            /* forward m-mer */
-        kmer_buffer[1] = (kmer_buffer[1] >> 2) | (3ULL ^ c) << shift; /* reverse m-mer */
+        kmer_buffer[1] = (kmer_buffer[1] >> 2) | ((3ULL ^ c) << shift); /* reverse m-mer */
         if (parent_view->canon and kmer_buffer[0] != kmer_buffer[1]) strand = kmer_buffer[0] < kmer_buffer[1] ? 0 : 1;  // strand, if symmetric k-mer then use previous strand
         ++bases_since_last_break;
     } else {

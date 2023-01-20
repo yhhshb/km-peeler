@@ -8,7 +8,7 @@
 
 int main(int argc, char* argv[])
 {
-    argparse::ArgumentParser parser("emv");
+    argparse::ArgumentParser parser(argv[0]);
     parser.add_argument("-d", "--tmp-dir")
         .help("Temporary directory where to save vector chunks")
         .required();

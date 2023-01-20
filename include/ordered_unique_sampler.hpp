@@ -83,7 +83,7 @@ template <class Iterator>
 typename ordered_unique_sampler<Iterator>::const_iterator const& ordered_unique_sampler<Iterator>::const_iterator::operator++()
 {
     auto prev = *itr_start;
-    while(prev == *itr_start && itr_start != parent_sampler.itr_stop) ++itr_start;
+    while(itr_start != parent_sampler.itr_stop and prev == *itr_start) ++itr_start;
     return *this;
 }
 

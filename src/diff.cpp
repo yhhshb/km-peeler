@@ -10,23 +10,20 @@ int diff_main(const argparse::ArgumentParser& args)
 {
     std::size_t loaded_bytes, m_size, s_size;
     std::string m_filename = args.get<std::string>("minuend");
-    // std::cout << "minuend: " << m_filename << std::endl;
     std::string s_filename = args.get<std::string>("subtrahend");
-    // std::cout << "subtrahend: " << s_filename << std::endl;
     IBLT mned = load(m_filename, loaded_bytes);
     m_size = mned.size();
     std::cerr << "[Info] minuend: loaded " << loaded_bytes << " bytes\n";
+    // mned.print_config(std::cerr);
     { // memory management of sbhd
         IBLT sbhd = load(s_filename, loaded_bytes);
         s_size = sbhd.size();
         std::cerr << "[Info] subtrahend: loaded " << loaded_bytes << " bytes\n";
+        // sbhd.print_config(std::cerr);
         mned.subtract(sbhd);
     }
     
-    if (args.is_used("--output")) {
-        io::store(mned, args.get<std::string>("--output"));
-        // std::cout << "--output: " << args.get<std::string>("--output") << "\n";
-    }
+    if (args.is_used("--output")) io::store(mned, args.get<std::string>("--output"));
     if (args.is_used("--jaccard")) {
         std::size_t m_diff_size, s_diff_size;
         IBLT::failure_t err;
@@ -49,7 +46,6 @@ int diff_main(const argparse::ArgumentParser& args)
         std::cout.rdbuf(cout_buffer_save); // restore cout
     }
     if (args.is_used("--list")) {
-        std::cout << "--list " << args.get<std::string>("--list") << "\n";
         std::vector<std::vector<uint8_t>> p, n;
         IBLT::failure_t err;
         auto cout_buffer_save = std::cout.rdbuf();
@@ -62,7 +58,7 @@ int diff_main(const argparse::ArgumentParser& args)
             for (auto& v : p) std::cout << vec2kmer(v, mned.get_k()) << "\n";
             for (auto& v : n) std::cout << vec2kmer(v, mned.get_k()) << "\n";
         } else {
-            std::cerr << err;
+            std::cout << err;
         }
         std::cout.rdbuf(cout_buffer_save); // restore cout
     }

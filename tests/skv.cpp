@@ -1,10 +1,14 @@
-/* TEST super-k-mer view and compare it with C version*/
+/* 
+ * super-k-mer view test and comparison to C version
+ */
 
 #include <zlib.h>
 extern "C" {
     #include "../include/kseq.h"
 }
 
+#include <string>
+#include <argparse/argparse.hpp>
 #include "../include/super_kmer_view.hpp"
 #include "../include/hash.hpp"
 
@@ -25,7 +29,7 @@ int main(int argc, char *argv[])
     while (kseq_read(seq) >= 0) {
         wrapper::super_kmer_view<kmer_t, mm_t, hash::hash64> view(seq->seq.s, seq->seq.l, k, m, false);
         for (auto itr = view.cbegin(); itr != view.cend(); ++itr) {
-            
+            // TODO
         }
     }
     if (seq) kseq_destroy(seq);

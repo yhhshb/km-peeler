@@ -52,5 +52,9 @@ set(LPHASH_SOURCES
 add_executable(kmp src/kmp.cpp ${LPHASH_SOURCES})
 target_link_libraries(kmp argparse z)
 
-add_executable(emv_test tests/emv.cpp)
-target_link_libraries(emv_test argparse)
+# Tests------------------------------------------------------------------------
+# add_executable(emv_test tests/emv.cpp)
+# target_link_libraries(emv_test argparse)
+# add_executable(ous_test tests/ous.cpp)
+# target_link_libraries(ous_test argparse)
+# add_executable(traits_examples tests/traits_examples.cpp src/MurmurHash3.cpp)
