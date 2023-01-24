@@ -38,21 +38,22 @@ class syncmer_sampler
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
         };
 
-        syncmer_sampler(Iterator const& start, Iterator const& stop, PropertyExtractor const& extractor, uint16_t offset);
+        syncmer_sampler(Iterator const& start, Iterator const& stop, PropertyExtractor const& extractor, uint16_t start_offset, uint16_t end_offset);
         const_iterator cbegin() const;
         const_iterator cend() const;
-        uint16_t get_offset() const;
+        std::pair<uint16_t, uint16_t> get_offsets() const;
 
     private:
         Iterator const itr_start;
         Iterator const itr_stop;
         PropertyExtractor const& extor;
         uint16_t soffset;
+        uint16_t eoffset;
 };
 
 template <class Iterator, typename PropertyExtractor>
-syncmer_sampler<Iterator, PropertyExtractor>::syncmer_sampler(Iterator const& start, Iterator const& stop, PropertyExtractor const& extractor, uint16_t offset) 
-    : itr_start(start), itr_stop(stop), extor(extractor), soffset(offset)
+syncmer_sampler<Iterator, PropertyExtractor>::syncmer_sampler(Iterator const& start, Iterator const& stop, PropertyExtractor const& extractor, uint16_t start_offset, uint16_t end_offset) 
+    : itr_start(start), itr_stop(stop), extor(extractor), soffset(start_offset), eoffset(end_offset)
 {}
 
 template <class Iterator, typename PropertyExtractor>
@@ -68,9 +69,9 @@ typename syncmer_sampler<Iterator, PropertyExtractor>::const_iterator syncmer_sa
 }
 
 template <class Iterator, typename PropertyExtractor>
-uint16_t syncmer_sampler<Iterator, PropertyExtractor>::get_offset() const
+std::pair<uint16_t, uint16_t> syncmer_sampler<Iterator, PropertyExtractor>::get_offsets() const
 {
-    return soffset;
+    return std::make_pair(soffset, eoffset);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------
@@ -112,7 +113,11 @@ template <class Iterator, typename PropertyExtractor>
 void
 syncmer_sampler<Iterator, PropertyExtractor>::const_iterator::find_first_syncmer() noexcept
 {
-    while (itr_start != parent_sampler.itr_stop and parent_sampler.extor(*itr_start) != parent_sampler.soffset) ++itr_start;
+    std::size_t pos;
+    while (itr_start != parent_sampler.itr_stop and 
+           ((pos = parent_sampler.extor(*itr_start)) != parent_sampler.soffset and
+             pos                                     != parent_sampler.eoffset)
+        ) ++itr_start;
 }
 
 } // namespace sampler

@@ -42,6 +42,7 @@ FetchContent_MakeAvailable(argparse)
 set(LPHASH_SOURCES
   src/build.cpp
   src/diff.cpp
+  src/correct.cpp
   src/io.cpp
   src/hash.cpp
   src/MurmurHash3.cpp

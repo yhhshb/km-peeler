@@ -31,7 +31,8 @@ int build_main(const argparse::ArgumentParser& args)
     uint64_t n = args.get<uint64_t>("-n");
     uint8_t k = args.get<uint8_t>("-k");
     uint8_t z = args.get<uint8_t>("-z");
-    uint8_t offset = args.get<uint8_t>("--offset");
+    uint8_t offset1 = args.get<uint8_t>("--offset");
+    uint8_t x = args.get<uint8_t>("--extend");
     uint8_t r = args.get<uint8_t>("--repetitions");
     float epsilon = args.get<float>("--epsilon");
     std::string tmp_dir = args.get<std::string>("--tmp-dir");
@@ -42,12 +43,18 @@ int build_main(const argparse::ArgumentParser& args)
 
     std::size_t k_max = (sizeof(kmer_t) * 8 / 2);
     if (k == 0) throw std::invalid_argument("k == 0");
-    if (k > k_max) throw std::invalid_argument("k > " + std::to_string(k_max));
+    if ((k + x) > k_max) throw std::invalid_argument("(k + x) > " + std::to_string(k_max));
     if (z > k) throw std::invalid_argument("z > k");
     if (r > 7 or r < 3) throw std::invalid_argument("r must be an integer value in [3, 7]");
     if (epsilon > 1 or epsilon < 0) throw std::invalid_argument("epsilon must be a floating point number in [0, 1]");
 
-    if (verbose) std::cerr << "Part 1: file reading and info gathering\n";
+    uint8_t offset2 = offset1 ? offset1 : k - z; // if open syncmers offset2 is the same as offset1
+
+    if (verbose) {
+        std::cerr << "Part 1: file reading and info gathering\n";
+        std::cerr << "offsets: (" << uint32_t(offset1) << ", " << uint32_t(offset2) << ")\n";
+        std::cerr << "extention = " << uint32_t(x) << "\n";
+    }
 
     emem::external_memory_vector<kmer_t> kmer_vector(max_ram_bytes, tmp_dir, "kmers");
     hash::minimizer_position_extractor mmp_extractor(k, z);
@@ -55,8 +62,8 @@ int build_main(const argparse::ArgumentParser& args)
     seq = kseq_init(fp);
 
     while (kseq_read(seq) >= 0) {
-        wrapper::kmer_view<kmer_t> view(seq->seq.s, seq->seq.l, k);
-        sampler::syncmer_sampler syncmers(view.cbegin(), view.cend(), mmp_extractor, offset);
+        wrapper::kmer_view<kmer_t> view(seq->seq.s, seq->seq.l, k+x);
+        sampler::syncmer_sampler syncmers(view.cbegin(), view.cend(), mmp_extractor, offset1, offset2);
         for (auto itr = syncmers.cbegin(); itr != syncmers.cend(); ++itr) {
             kmer_vector.push_back(*itr);
         }
@@ -64,7 +71,11 @@ int build_main(const argparse::ArgumentParser& args)
     if (seq) kseq_destroy(seq);
     gzclose(fp);
 
-    IBLT iblt(k, r, epsilon, n, seed);
+    if (verbose) {
+        std::cerr << "Part 2: found " << kmer_vector.size() << "syncmers\n";
+    }
+
+    IBLT iblt(k + x, r, epsilon, n, seed);
     sampler::ordered_unique_sampler unique_kmers(kmer_vector.cbegin(), kmer_vector.cend());
     for (auto itr = unique_kmers.cbegin(); itr != unique_kmers.cend(); ++itr) {
         auto val = *itr;
@@ -101,6 +112,10 @@ argparse::ArgumentParser get_parser_build()
         // .default_value(uint8_t(0));
     parser.add_argument("-f", "--offset")
         .help("z-mer offset inside syncmers")
+        .scan<'u', uint8_t>()
+        .default_value(uint8_t(0));
+    parser.add_argument("-x", "--extend")
+        .help("extension of x bases after each syncmer")
         .scan<'u', uint8_t>()
         .default_value(uint8_t(0));
     parser.add_argument("-r", "--repetitions")

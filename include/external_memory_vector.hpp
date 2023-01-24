@@ -59,6 +59,8 @@ template <typename T, bool sorted = true>
 class external_memory_vector : public std::conditional<sorted, sorted_base<T>, unsorted_base<T>>::type 
 {
     public:
+        using value_type = T;
+        
         class const_iterator
         {
             public:
