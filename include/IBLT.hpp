@@ -50,16 +50,17 @@ class IBLT
 
         IBLT();
         void resize_buffers();
+        std::pair<std::size_t, decltype(hasher)::hash_type> hash_kmer(uint8_t const* kmer, uint32_t row) const noexcept;
         uint8_t get_count_at(std::size_t idx) const noexcept;
         void update_count_at(std::size_t idx, std::function<uint8_t(uint8_t)>) noexcept;
         void inc_count_at(std::size_t idx) noexcept;
         void dec_count_at(std::size_t idx) noexcept;
-        void xor_at(std::size_t idx, uint8_t const * const kmer, uint64_t header) noexcept;
+        void xor_at(std::size_t idx, uint8_t const * const kmer, uint64_t header);
         std::size_t unpack_at(std::size_t idx) noexcept;
         int is_peelable(std::size_t idx) noexcept;
         long long find_peelable_bucket() noexcept;
         std::vector<uint8_t> get_payload(std::size_t idx) noexcept;
-        void peel(uint8_t const * const kmer, std::size_t kmer_byte_size, std::size_t origin_bucket, std::function<uint8_t(uint8_t)>, idx_stack_t& idxs);
+        long long peel(uint8_t const * const kmer, std::size_t kmer_byte_size, std::size_t origin_bucket, std::function<uint8_t(uint8_t)>);//, idx_stack_t& idxs);
 
         friend IBLT load(std::string filename, std::size_t& byte_size);
         friend std::ostream& operator<<(std::ostream& os, IBLT const& obj);

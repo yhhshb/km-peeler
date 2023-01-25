@@ -24,6 +24,10 @@ class append_iterator
             : i(0), iterators(start_end) 
         {}
 
+        append_iterator(std::vector<std::pair<ItrType, ItrType>>&& start_end) 
+            : i(0), iterators(start_end) 
+        {}
+
         void operator++() 
         {
             ++(iterators[i].first);
@@ -39,6 +43,11 @@ class append_iterator
         { // FIXME This is not very C++-ish, rewrite the class as a dummy container with methods begin() and end()
             if (i == iterators.size()) return false;
             return true;
+        }
+
+        std::size_t size() const
+        {
+            return iterators.size();
         }
 
     private:
@@ -181,6 +190,7 @@ template <typename T, bool sorted>
 void 
 external_memory_vector<T, sorted>::init(uint64_t available_space_bytes) 
 {
+    if (available_space_bytes / sizeof(T) == 0) throw std::runtime_error("[EMV] Insufficient memory");
     m_buffer_size = available_space_bytes / sizeof(T) + 1;
     m_buffer.reserve(m_buffer_size);
 }

@@ -22,6 +22,7 @@ int correct_main(const argparse::ArgumentParser& args)
     std::string s_filename = args.get<std::string>("extended-subtrahend");
     std::string sc_filename = args.get<std::string>("correction-subtrahend");
     uint64_t max_ram = args.get<uint64_t>("--max-ram");
+    max_ram *= 1000000000ULL;
     std::string tmp_dir = args.get<std::string>("--tmp-dir");
     IBLT mned = load(m_filename, loaded_bytes);
     std::cerr << "[Info] minuend: loaded " << loaded_bytes << " bytes\n";

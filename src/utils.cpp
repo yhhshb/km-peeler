@@ -56,4 +56,11 @@ void little2big(uint8_t* val_bytes, std::size_t val_size)
     }
 }
 
+void dump_byte_vec(uint8_t const * const val_bytes, std::size_t val_size) 
+{
+    for(std::size_t i = 0; i < val_size; ++i) {
+		fprintf(stderr, "%02X", val_bytes[i]);
+	}
+}
+
 } // namespace kmp

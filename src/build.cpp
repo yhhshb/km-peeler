@@ -52,8 +52,8 @@ int build_main(const argparse::ArgumentParser& args)
 
     if (verbose) {
         std::cerr << "Part 1: file reading and info gathering\n";
-        std::cerr << "offsets: (" << uint32_t(offset1) << ", " << uint32_t(offset2) << ")\n";
-        std::cerr << "extention = " << uint32_t(x) << "\n";
+        std::cerr << "\toffsets: (" << uint32_t(offset1) << ", " << uint32_t(offset2) << ")\n";
+        std::cerr << "\textention = " << uint32_t(x) << "\n";
     }
 
     emem::external_memory_vector<kmer_t> kmer_vector(max_ram_bytes, tmp_dir, "kmers");
@@ -71,11 +71,11 @@ int build_main(const argparse::ArgumentParser& args)
     if (seq) kseq_destroy(seq);
     gzclose(fp);
 
-    if (verbose) {
-        std::cerr << "Part 2: found " << kmer_vector.size() << "syncmers\n";
-    }
-
     IBLT iblt(k + x, r, epsilon, n, seed);
+    if (verbose) {
+        std::cerr << "Part 2: found " << kmer_vector.size() << " syncmers\n";
+        iblt.print_config(std::cerr);
+    }
     sampler::ordered_unique_sampler unique_kmers(kmer_vector.cbegin(), kmer_vector.cend());
     for (auto itr = unique_kmers.cbegin(); itr != unique_kmers.cend(); ++itr) {
         auto val = *itr;
@@ -83,7 +83,6 @@ int build_main(const argparse::ArgumentParser& args)
         kmp::little2big(vptr, sizeof(val));
         iblt.insert(vptr, sizeof(val)); // FIXME hide endian check inside insert
     }
-
     std::cerr << "Written IBLT of " << io::store(iblt, output_filename) << " Bytes\n";
 
     return 0;

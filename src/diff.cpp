@@ -9,6 +9,7 @@ extern "C" {
 #include "../include/external_memory_vector.hpp"
 #include "../include/kmer_view.hpp"
 #include "../include/syncmer_sampler.hpp"
+#include "../include/ordered_unique_sampler.hpp"
 #include "../include/io.hpp"
 #include "../include/IBLT.hpp"
 #include "../include/utils.hpp"
@@ -21,6 +22,7 @@ int diff_main(const argparse::ArgumentParser& args)
 {
     std::size_t loaded_bytes, m_size, s_size;
     uint64_t max_ram = args.get<uint64_t>("--max-ram");
+    max_ram *= 1000000000ULL;
     std::string tmp_dir = args.get<std::string>("--tmp-dir");
     std::string m_filename = args.get<std::string>("minuend");
     std::string s_filename = args.get<std::string>("subtrahend");
@@ -75,16 +77,24 @@ int diff_main(const argparse::ArgumentParser& args)
             if (seq) kseq_destroy(seq);
             gzclose(fp);
         }
-        std::cerr << "[1] checkpoint" << std::endl;
-        std::set_symmetric_difference(kmer_vectors[0].cbegin(), kmer_vectors[0].cend(), 
-                                      kmer_vectors[1].cbegin(), kmer_vectors[1].cend(), 
+        sampler::ordered_unique_sampler mned_set(kmer_vectors.at(0).cbegin(), kmer_vectors.at(0).cend());
+        sampler::ordered_unique_sampler sbhd_set(kmer_vectors.at(1).cbegin(), kmer_vectors.at(1).cend());
+        std::set_symmetric_difference(mned_set.cbegin(), mned_set.cend(), 
+                                      sbhd_set.cbegin(), sbhd_set.cend(), 
                                       std::back_inserter(symmetric_difference));
-        std::cerr << "[2] checkpoint" << std::endl;
+        std::vector<kmer_t> dummy;
+        std::set_difference(mned_set.cbegin(), mned_set.cend(), 
+                            sbhd_set.cbegin(), sbhd_set.cend(), 
+                            std::back_inserter(dummy));
+        std::cerr << "exact one-sided difference (minuend - sobtrahend) of size " << dummy.size() << "\n";
     }
+
     std::vector<std::vector<uint8_t>> p, n;
-    IBLT::failure_t err;
-    err = mned.list(p, n);
-    if (list_filename.length()) {
+    IBLT::failure_t err = mned.list(p, n);
+    if (err) std::cerr << "------------" << err << "------------\n";
+    std::cerr << "Retrieved " << p.size() << " and " << n.size() << " elements by peeling\n";
+
+    if (list_filename.length() or jaccard_filename.length()) {
         auto cout_buffer_save = std::cout.rdbuf();
         std::ofstream myostrm;
         if (list_filename != ".") { // redirect cout
@@ -92,60 +102,76 @@ int diff_main(const argparse::ArgumentParser& args)
             std::cout.rdbuf(myostrm.rdbuf());
         }
 
-        if (not err) {
+        if (list_filename.length()) {
             for (auto& v : p) std::cout << vec2kmer(v, mned.get_k()) << "\n";
             for (auto& v : n) std::cout << vec2kmer(v, mned.get_k()) << "\n";
-        } else {
-            std::cout << err << "\n";
         }
 
         std::cout.rdbuf(cout_buffer_save); // restore cout
-    }
 
-    if (jaccard_filename.length()) {
-        std::size_t m_diff_size = p.size(); 
-        std::size_t s_diff_size = n.size();
-        auto cout_buffer_save = std::cout.rdbuf();
-        std::ofstream myostrm;
-        if (jaccard_filename != ".") { // redirect cout
-            myostrm.open(jaccard_filename);
-            std::cout.rdbuf(myostrm.rdbuf());
+        if (jaccard_filename.length()) {
+            std::size_t m_diff_size = p.size();
+            std::size_t s_diff_size = n.size();
+
+            auto cout_buffer_save = std::cout.rdbuf();
+            std::ofstream myostrm;
+            if (jaccard_filename != ".") { // redirect cout
+                myostrm.open(jaccard_filename);
+                std::cout.rdbuf(myostrm.rdbuf());
+            }
+
+            std::cout << m_filename << "," << s_filename << ",";
+            auto intersection_size = m_size - m_diff_size;
+            assert(intersection_size == s_size - s_diff_size);
+            double j = double(intersection_size) / double(m_size + s_size - intersection_size);
+            if (not err) std::cout << j;
+            else std::cout << err;
+            std::cout << "\n";
+
+            std::cout.rdbuf(cout_buffer_save); // restore cout
         }
-        std::cout << m_filename << "," << s_filename << ",";
-        auto intersection_size = m_size - m_diff_size;
-        assert(intersection_size == s_size - s_diff_size);
-        double j = double(intersection_size) / double(m_size + s_size - intersection_size);
-        if (not err) std::cout << j;
-        else std::cout << err;
-        std::cout << "\n";
-        std::cout.rdbuf(cout_buffer_save); // restore cout
     }
 
     if (args.is_used("--check")) {
-        if (not err) {
+        // if (not err) {
+            auto temporary_ranges = std::vector{std::make_pair(p.cbegin(), p.cend()), std::make_pair(n.cbegin(), n.cend())};
+            emem::append_iterator iblt_itr(temporary_ranges);
             std::vector<kmer_t> iblt_diff;
             iblt_diff.reserve(symmetric_difference.size());
-            for (auto& v : p) {
-                uint8_t* vptr = v.data();
-                kmp::little2big(vptr, v.size());
-                iblt_diff.push_back(*reinterpret_cast<kmer_t*>(vptr));
-            }
-            for (auto& v : n) {
-                uint8_t* vptr = v.data();
-                kmp::little2big(vptr, v.size());
-                iblt_diff.push_back(*reinterpret_cast<kmer_t*>(vptr));
+            kmer_t full_kmer = 0;
+            uint8_t* full_kmer_ptr = reinterpret_cast<uint8_t*>(&full_kmer);
+            while(iblt_itr.has_next()) {
+                const auto& packed_kmer = *iblt_itr;
+                for (std::size_t i = 0; i < packed_kmer.size(); ++i) full_kmer_ptr[i] = packed_kmer.at(i);
+                kmp::little2big(full_kmer_ptr, packed_kmer.size());
+                iblt_diff.emplace_back(full_kmer);
+                ++iblt_itr;
             }
             std::sort(iblt_diff.begin(), iblt_diff.end());
-            std::vector<kmer_t> dummy;
-            std::set_symmetric_difference(symmetric_difference.cbegin(), symmetric_difference.cend(),
-                                            iblt_diff.cbegin(), iblt_diff.cend(), std::back_inserter(dummy));
-            std::cerr << "Peelable sketch check: ";
-            if (dummy.size()) std::cerr << "FAILED";
-            else std::cerr << "OK";
+            // for (auto itr = symmetric_difference.cbegin(); itr != symmetric_difference.cend(); ++itr) {
+            //     auto v = *itr;
+            //     auto* v_ptr = reinterpret_cast<uint8_t*>(&v);
+            //     dump_byte_vec(v_ptr, sizeof(decltype(v)));
+            //     std::cerr << "\n";
+            // }
+            // for(auto v : iblt_diff) {
+            //     auto* v_ptr = reinterpret_cast<uint8_t*>(&v);
+            //     dump_byte_vec(v_ptr, sizeof(decltype(v)));
+            //     std::cerr << "\n";
+            // }
+
+            bool ok = (symmetric_difference.size() == iblt_diff.size());
+            auto isd = iblt_diff.cbegin();
+            for (auto tsd = symmetric_difference.cbegin(); ok and tsd != symmetric_difference.cend(); ++tsd, ++isd) {
+                ok = (*tsd == *isd);
+            }
+            std::cerr << "Checking : ";
+            if (ok) std::cerr << "Everything is OK";
+            else std::cerr << "FAILED";
             std::cerr << std::endl;
-        } else {
-            std::cerr << "Unable to check due to unpeelable sketch\n";
-        }
+        // } else {
+        //     std::cerr << "Unable to check due to unpeelable sketch\n";
+        // }
     }
 
     return 0;
