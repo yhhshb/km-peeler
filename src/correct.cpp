@@ -167,6 +167,7 @@ int correct_main(const argparse::ArgumentParser& args)
 argparse::ArgumentParser get_parser_correct()
 {
     argparse::ArgumentParser parser("correct");
+    parser.add_description("Check correctness of the combination between extended syncmers and whole IBLTs");
     parser.add_argument("extended-minuend")
         .help("extended IBLT from which to subtract");
     parser.add_argument("correction-minuend")
@@ -176,7 +177,7 @@ argparse::ArgumentParser get_parser_correct()
     parser.add_argument("correction-subtrahend")
         .help("correction IBLT of the subtrahend (containing all k-mers)");
     parser.add_argument("-l", "--list")
-        .help("List IBLT to file. Use '.' for stdout");
+        .help("List IBLT to file (use '.' for stdout)");
     parser.add_argument("-m", "--max-ram")
         .help("RAM limit")
         .scan<'d', uint64_t>()

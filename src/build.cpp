@@ -74,7 +74,7 @@ int build_main(const argparse::ArgumentParser& args)
     IBLT iblt(k + x, r, epsilon, n, seed);
     if (verbose) {
         std::cerr << "Part 2: found " << kmer_vector.size() << " syncmers\n";
-        iblt.print_config(std::cerr);
+        std::cerr << iblt << "\n\n";
     }
     sampler::ordered_unique_sampler unique_kmers(kmer_vector.cbegin(), kmer_vector.cend());
     for (auto itr = unique_kmers.cbegin(); itr != unique_kmers.cend(); ++itr) {
@@ -91,6 +91,7 @@ int build_main(const argparse::ArgumentParser& args)
 argparse::ArgumentParser get_parser_build()
 {
     argparse::ArgumentParser parser("build");
+    parser.add_description("Build an Invertible Bloom Lookup Table");
     parser.add_argument("input_filename")
         .help("fastx file in input (gzipped or not)");
     parser.add_argument("output_filename")

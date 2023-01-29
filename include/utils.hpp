@@ -20,7 +20,7 @@ void print_byte_vec(std::ostream& os, uint8_t const * const v, std::size_t vlen)
 
 void little2big(uint8_t* val_bytes, std::size_t val_size);
 
-void dump_byte_vec(uint8_t const * const val_bytes, std::size_t val_size);
+void dump_byte_vec(std::FILE* outstrm, uint8_t const * const val_bytes, std::size_t val_size);
 
 } // namespace kmp
 

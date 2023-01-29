@@ -23,9 +23,9 @@ endif()
 if (UNIX)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-missing-braces -Wno-unknown-attributes -Wno-unused-function")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-char-subscripts")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread") # for multi-threading
+  # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
   if (KMP_USE_SANITIZERS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
   endif()
@@ -43,6 +43,7 @@ set(LPHASH_SOURCES
   src/build.cpp
   src/diff.cpp
   src/correct.cpp
+  src/dump.cpp
   src/io.cpp
   src/hash.cpp
   src/MurmurHash3.cpp
@@ -50,12 +51,21 @@ set(LPHASH_SOURCES
   src/utils.cpp
 )
 
+set(CWS_SOURCES
+  scripts/kmc_extra/kmc_api/kmc_file.cpp
+  scripts/kmc_extra/kmc_api/kmer_api.cpp
+  scripts/kmc_extra/kmc_api/mmer.cpp
+  src/MurmurHash3.cpp
+)
+
 add_executable(kmp src/kmp.cpp ${LPHASH_SOURCES})
 target_link_libraries(kmp argparse z)
+add_executable(cws scripts/kmc_extra/cws.cpp ${CWS_SOURCES})
+target_link_libraries(cws argparse)
 
 # Tests------------------------------------------------------------------------
-add_executable(emv_test tests/emv.cpp)
-target_link_libraries(emv_test argparse)
+# add_executable(emv_test tests/emv.cpp)
+# target_link_libraries(emv_test argparse)
 # add_executable(ous_test tests/ous.cpp)
 # target_link_libraries(ous_test argparse)
 # add_executable(traits_examples tests/traits_examples.cpp src/MurmurHash3.cpp)

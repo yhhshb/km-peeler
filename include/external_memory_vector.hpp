@@ -20,18 +20,19 @@ class append_iterator
     public:
         typedef typename ItrType::value_type value_type;
 
-        append_iterator(std::vector<std::pair<ItrType, ItrType>>& start_end) 
-            : i(0), iterators(start_end) 
-        {}
+        append_iterator(std::vector<std::pair<ItrType, ItrType>>& start_end) noexcept
+            : i(0), iterators(start_end) {search_for_start();}
 
-        append_iterator(std::vector<std::pair<ItrType, ItrType>>&& start_end) 
-            : i(0), iterators(start_end) 
-        {}
+        append_iterator(std::vector<std::pair<ItrType, ItrType>>&& start_end) noexcept
+            : i(0), iterators(start_end) {search_for_start();}
 
         void operator++() 
         {
             ++(iterators[i].first);
-            if (iterators[i].first == iterators[i].second) ++i;
+            if (iterators[i].first == iterators[i].second) {
+                search_for_start();
+                // ++i;
+            }
         }
 
         typename ItrType::value_type operator*() const 
@@ -53,6 +54,11 @@ class append_iterator
     private:
         uint64_t i;
         std::vector<std::pair<ItrType, ItrType>>& iterators;
+
+        void search_for_start() noexcept
+        {
+            while (i < iterators.size() and iterators.at(i).first == iterators.at(i).second) ++i;
+        }
 };
 
 template <typename T>

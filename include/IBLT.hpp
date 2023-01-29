@@ -12,7 +12,7 @@ namespace kmp {
 class IBLT
 {
     public:
-        enum failure_t {NONE, UNPEELABLE, INFINITE_LOOP};
+        enum failure_t {NONE, UNPEELABLE, INFINITE_LOOP, ASYMMETRIC};
         IBLT(uint8_t k, uint8_t r, double epsilon, uint64_t n, uint64_t seed);
         IBLT (IBLT &) = default;
         IBLT (IBLT &&) = default;
@@ -23,7 +23,7 @@ class IBLT
         failure_t list(std::size_t& positive_size, std::size_t& negative_size);
         std::size_t size() const noexcept;
         uint8_t get_k() const noexcept;
-        void print_config(std::ostream& os) const noexcept;
+        void dump_contents() noexcept;
         template <class Visitor> void visit(Visitor& visitor);
 
     private:

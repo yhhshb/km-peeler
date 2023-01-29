@@ -15,7 +15,7 @@ TEMPDIR=$3; #"../../../tmp/tmp"
 # echo $DUMPDIR;
 # echo $TEMPDIR;
 
-N=10
+N=$4
 K=15
 Z=4
 
@@ -32,12 +32,26 @@ if [ "x$TEMPDIR" = "x" ] ; then
     exit 1 ; 
 fi
 
+FASTA1="$INDIR/BS000689.1.fasta"
+FASTA2="$INDIR/BS000694.1.fasta"
 IBLT1="$DUMPDIR/BS000689.iblt.bin"
 IBLT2="$DUMPDIR/BS000694.iblt.bin"
 
 rm $IBLT1
 rm $IBLT2
 
-$KMPEXE build "$INDIR/BS000689.1.fasta" $IBLT1 -n $N -k $K -z $Z --tmp-dir $TEMPDIR
-$KMPEXE build "$INDIR/BS000694.1.fasta" $IBLT2 -n $N -k $K -z $Z --tmp-dir $TEMPDIR
-$KMPEXE diff $IBLT1 $IBLT2 -l "."
+$KMPEXE build $FASTA1 $IBLT1 -n $N -k $K -z $Z --tmp-dir $TEMPDIR
+$KMPEXE build $FASTA2 $IBLT2 -n $N -k $K -z $Z --tmp-dir $TEMPDIR
+$KMPEXE diff $IBLT1 $IBLT2 -l "." --check $FASTA1 $FASTA2 -z $Z --offset 0 --tmp-dir $TEMPDIR
+
+FASTA1="$INDIR/BS000694.1.fasta"
+FASTA2="$INDIR/BS000701.1.fasta"
+IBLT1="$DUMPDIR/BS000694.iblt.bin"
+IBLT2="$DUMPDIR/BS000701.iblt.bin"
+
+rm $IBLT1
+rm $IBLT2
+
+$KMPEXE build $FASTA1 $IBLT1 -n $N -k $K -z $Z --tmp-dir $TEMPDIR
+$KMPEXE build $FASTA2 $IBLT2 -n $N -k $K -z $Z --tmp-dir $TEMPDIR
+$KMPEXE diff $IBLT1 $IBLT2 -j "." --check $FASTA1 $FASTA2 -z $Z --offset 0 --tmp-dir $TEMPDIR -o ../../../tmp/binary_dumps/to_be_dumped.iblt.bin

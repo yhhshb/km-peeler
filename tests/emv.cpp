@@ -54,6 +54,15 @@ int main(int argc, char* argv[])
 
         std::cerr << "PASS : unsorted vector\n";
     }
+
+    {
+        std::vector<uint64_t> bla;
+        bla.reserve(n);
+        for (std::size_t i = 0; i < n; ++i) bla.push_back(i);
+        emem::external_memory_vector<uint64_t> v(1000, tmp_dir, "kmp_test_emv_back_inserter"); 
+        std::set_union(bla.begin(), bla.end(), bla.begin(), bla.end(), std::back_inserter(v));
+        std::cerr << "PASS : set union done\n";
+    }
     
     return 0;
 }

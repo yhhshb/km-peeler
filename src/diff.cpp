@@ -26,6 +26,7 @@ int diff_main(const argparse::ArgumentParser& args)
     std::string tmp_dir = args.get<std::string>("--tmp-dir");
     std::string m_filename = args.get<std::string>("minuend");
     std::string s_filename = args.get<std::string>("subtrahend");
+    bool verbose = args.get<bool>("--verbose");
     std::string jaccard_filename, list_filename;
     IBLT mned = load(m_filename, loaded_bytes);
     std::cerr << "[Info] minuend: loaded " << loaded_bytes << " bytes\n";
@@ -86,13 +87,14 @@ int diff_main(const argparse::ArgumentParser& args)
         std::set_difference(mned_set.cbegin(), mned_set.cend(), 
                             sbhd_set.cbegin(), sbhd_set.cend(), 
                             std::back_inserter(dummy));
-        std::cerr << "exact one-sided difference (minuend - sobtrahend) of size " << dummy.size() << "\n";
+        if (verbose) std::cerr << "exact one-sided difference (minuend - subtrahend) of size " << dummy.size() << "\n";
     }
 
     std::vector<std::vector<uint8_t>> p, n;
     IBLT::failure_t err = mned.list(p, n);
-    if (err) std::cerr << "------------" << err << "------------\n";
-    std::cerr << "Retrieved " << p.size() << " and " << n.size() << " elements by peeling\n";
+    if (args.get<std::string>("--after").length()) io::store(mned, args.get<std::string>("--after"));
+    if (err and verbose) std::cerr << "------------" << err << "------------\n";
+    if (verbose) std::cerr << "Retrieved " << p.size() << " and " << n.size() << " elements by peeling\n";
 
     if (list_filename.length() or jaccard_filename.length()) {
         auto cout_buffer_save = std::cout.rdbuf();
@@ -121,11 +123,17 @@ int diff_main(const argparse::ArgumentParser& args)
             }
 
             std::cout << m_filename << "," << s_filename << ",";
-            auto intersection_size = m_size - m_diff_size;
-            assert(intersection_size == s_size - s_diff_size);
-            double j = double(intersection_size) / double(m_size + s_size - intersection_size);
-            if (not err) std::cout << j;
-            else std::cout << err;
+            if (not err) {
+                auto intersection_size = m_size - m_diff_size;
+                if (intersection_size != s_size - s_diff_size) {
+                    std::cout << kmp::IBLT::UNPEELABLE;
+                } else {
+                    double j = double(intersection_size) / double(m_size + s_size - intersection_size);
+                    std::cout << j;
+                }
+            } else {
+                std::cout << err;
+            }
             std::cout << "\n";
 
             std::cout.rdbuf(cout_buffer_save); // restore cout
@@ -180,6 +188,7 @@ int diff_main(const argparse::ArgumentParser& args)
 argparse::ArgumentParser get_parser_diff()
 {
     argparse::ArgumentParser parser("diff");
+    parser.add_description("List differences or compute Jaccard similarity");
     parser.add_argument("minuend")
         .help("IBLT from which to subtract");
     parser.add_argument("subtrahend")
@@ -208,6 +217,9 @@ argparse::ArgumentParser get_parser_diff()
     parser.add_argument("-d", "--tmp-dir")
         .help("temporary directory")
         .default_value(std::string("."));
+    parser.add_argument("--after")
+        .help("store sketch after peeling (debuggin purposes)")
+        .default_value(std::string(""));
     parser.add_argument("-v", "--verbose")
         .help("increase output verbosity")
         .default_value(false)

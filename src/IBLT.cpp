@@ -4,7 +4,9 @@
 #include "../include/io.hpp"
 #include "../include/utils.hpp"
 
+#ifndef NDEBUG
 #include <iostream>
+#endif
 
 namespace kmp {
 
@@ -22,7 +24,7 @@ IBLT::IBLT(uint8_t k, uint8_t r, double epsilon, uint64_t n, uint64_t seed = 42)
     eps(epsilon), 
     max_diff(n), 
     pseed(seed),
-    hrc_bit_size(static_cast<decltype(hrc_bit_size)>(std::ceil((reps - 2) * std::log(static_cast<double>(max_diff)) + reps))),
+    hrc_bit_size(static_cast<decltype(hrc_bit_size)>(std::ceil((reps - 2) * std::log2(static_cast<double>(max_diff)) + reps))),
     prefix_len(hrc_bit_size % 8),
     mask(~((uint8_t(1) << (8-prefix_len)) - 1)),
     number_of_inserted_items(0)
@@ -131,7 +133,20 @@ IBLT::failure_t IBLT::list(std::vector<std::vector<uint8_t>>& positives, std::ve
     }
     peeled_count = positives.size() + negatives.size();
     if (peeled_count >= peeling_max_iterations) return INFINITE_LOOP;
-    for (auto c : counts) if (c != 0) return UNPEELABLE;
+    // for (auto byte : hp_buckets) if (byte != 0) return UNPEELABLE;
+    // for (auto c : counts) if (c != 0) return UNPEELABLE;
+    auto count_hist = [&](std::array<std::size_t, 4>& hist) {
+        for (uint8_t c : counts) {
+            for (uint8_t i = 0; i < 4; ++i) {
+                ++hist[c & 0x03];
+                c >>= 2;
+            }
+        }
+    };
+    std::array<std::size_t, 4> histogram = {0,0,0,0};
+    count_hist(histogram);
+    if (histogram.at(1) or histogram.at(3)) return UNPEELABLE;
+    if (histogram.at(2)) return ASYMMETRIC; // full symmetric difference but wrong positive/negative sets depending on the difference order
     return NONE;
 }
 
@@ -154,18 +169,18 @@ uint8_t IBLT::get_k() const noexcept
     return klen;
 }
 
-void IBLT::print_config(std::ostream& os) const noexcept
+void IBLT::dump_contents() noexcept
 {
-    os << 
-    "k = " << uint32_t(klen) << "\n" <<
-    "r = " << uint32_t(reps) << "\n" <<
-    "epsilon = " << eps << "\n" <<
-    "seed = " << pseed << "\n" <<
-    "hash bit-width = " << hrc_bit_size << "\n" <<
-    "overlapping byte prefix length = " << prefix_len << "\n" <<
-    "mask for overlapping byte = " << uint32_t(mask) << "\n" <<
-    "buckets = " << number_of_buckets << "\n" <<
-    "bucket size = " << bucket_size << "\n\n";
+    std::size_t chunk_size = number_of_buckets / reps;
+    for (std::size_t i = 0; i < number_of_buckets; ++i) {
+        fprintf(stderr, "%u | ", get_count_at(i));
+        dump_byte_vec(stderr, &hp_buckets.at(i*bucket_size), bucket_size);
+        fprintf(stderr, "--> ");
+        if (is_peelable(i)) fprintf(stderr, "peelable");
+        else fprintf(stderr, "unpeelable");
+        fprintf(stderr, "\n");
+        if ((i+1) % chunk_size == 0) fprintf(stderr, "\n");
+    }
 }
 
 //------------------------------------------------------------------------------------------------
@@ -374,7 +389,16 @@ IBLT load(std::string filename, std::size_t& byte_size)
 
 std::ostream& operator<<(std::ostream& os, const IBLT& obj)
 {
-    // write obj to stream
+    os << 
+    "k = " << uint32_t(obj.klen) << "\n" <<
+    "r = " << uint32_t(obj.reps) << "\n" <<
+    "epsilon = " << obj.eps << "\n" <<
+    "seed = " << obj.pseed << "\n" <<
+    "hash bit-width = " << obj.hrc_bit_size << "\n" <<
+    "overlapping byte prefix length = " << obj.prefix_len << "\n" <<
+    "mask for overlapping byte = " << uint32_t(obj.mask) << "\n" <<
+    "buckets = " << obj.number_of_buckets << "\n" <<
+    "bucket size = " << obj.bucket_size;
     return os;
 }
 
@@ -386,6 +410,9 @@ std::ostream& operator<<(std::ostream& os, IBLT::failure_t const& err)
             break;
         case IBLT::INFINITE_LOOP:
             os << "Infinite peeling";
+            break;
+        case IBLT::ASYMMETRIC:
+            os << "Asymmetric";
             break;
         default:
             throw std::runtime_error("[Formatting] Unrecognized IBLT error code");
