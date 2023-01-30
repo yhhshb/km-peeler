@@ -16,7 +16,6 @@ class double_hash64
         std::array<uint64_t, 2> operator()(uint8_t const* key, uint32_t keylen, uint32_t seed) const noexcept
         {
             std::array<uint64_t, 2> hval;
-            assert(keylen < std::numeric_limits<int>::max());
             MurmurHash3_x64_128(reinterpret_cast<const void*>(key), keylen, seed, hval.data());
             return hval;
         }

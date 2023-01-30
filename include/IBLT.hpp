@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <stack>
+#include <functional>
 #include "../include/hash.hpp"
 
 namespace kmp {
