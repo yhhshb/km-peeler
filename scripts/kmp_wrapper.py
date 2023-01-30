@@ -39,7 +39,7 @@ def get_maximum_difference_from_byte_size(byte_size: int, k: int, r: int, epsilo
             new_guess = int(guess + guess * size_undershoot)
     return new_guess
 
-def sketch(executable, input_fastx: str, output_sketch: str, n: int, k: int, z: str, r: int, epsilon: float, seed: int, tmp_dir, max_ram: int):
+def sketch(executable, input_fastx: str, output_sketch: str, n: int, k: int, z: str, r: int, epsilon: float, seed: int, canonical: bool, tmp_dir, max_ram: int):
     assert executable
     assert input_fastx
     assert output_sketch
@@ -60,8 +60,9 @@ def sketch(executable, input_fastx: str, output_sketch: str, n: int, k: int, z: 
     r_opt = ["-r", str(r)]
     epsilon_opt = ["-e", str(epsilon)]
     seed_opt = ["-s", str(seed)]
+    canon_opt = ["-c"] if canonical else []
     tmp_opt = ["-d", tmp_dir]
-    command = build + input_opt + output_opt + n_opt + k_opt + z_opt + r_opt + epsilon_opt + seed_opt + tmp_opt
+    command = build + input_opt + output_opt + n_opt + k_opt + z_opt + r_opt + epsilon_opt + seed_opt + canon_opt + tmp_opt
     out = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if out.returncode != 0: sys.stderr.write("ibltseq exited with error {}\n".format(out.returncode))
 
@@ -70,7 +71,7 @@ def get_outname(fastx_file) -> str:
     while(p.stem != str(p)): p = pathlib.Path(p.stem)
     return str(p.with_suffix(".iblt.bin"))
     
-def sketch_folder(executable, input_folder, output_folder, n: int, k: int, z: int, r: int, epsilon: float, seed: int, tmp_dir, max_ram:int, force: bool = True):
+def sketch_folder(executable, input_folder, output_folder, n: int, k: int, z: int, r: int, epsilon: float, seed: int, canonical: bool, tmp_dir, max_ram:int, force: bool = True):
     assert executable
     assert input_folder
     assert output_folder
@@ -87,12 +88,18 @@ def sketch_folder(executable, input_folder, output_folder, n: int, k: int, z: in
     for fname in fastx_files:
         oname = output_folder.joinpath(get_outname(fname))
         if (force or not oname.exists()):
-            sketch(executable, fname, oname, n, k, z, r, epsilon, seed, tmp_dir, max_ram)
+            sketch(executable, fname, oname, n, k, z, r, epsilon, seed, canonical, tmp_dir, max_ram)
 
 def pairwise_jaccard(executable, a, b) -> str:
     out = subprocess.run([executable, "diff", str(a), str(b), "-j", "."], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     if out.returncode != 0: raise RuntimeError("IBLT jaccard computation failed")
     return out.stdout.decode("utf-8").strip().split(',')[-1]
+
+def check_enhanced_extended_syncmers(executable, a, b, ecc_a, ecc_b, max_ram: int, A, B):
+    out = subprocess.run([executable, "correct", a, ecc_a, b, ecc_b, "-m", str(max_ram), "--check", A, B], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    if out.returncode != 0: raise RuntimeError("Unable to remove false positives")
+    msg = out.stderr.decode("utf-8")
+    return msg.find("OK") == (len(msg) - 3)
 
 def sketch_each_sequence(executable, algo: str, input_fastx, output_folder, k: int, m: str, n: int, r: int, epsilon: float, seed: int):
     #TODO stream temporary fasta to kmp build directly, without writing to disk

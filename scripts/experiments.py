@@ -97,7 +97,7 @@ def jaccard_experiment_main(args):
     for sampling_rate in args.sampling_rates:
         assert sampling_rate >= 0
         header_names.append("syncj r={}".format(sampling_rate))
-        kmp_wrapper.sketch_folder(kmp_executable, args.input_folder, kmp_dir, n, k, z, r, eps, args.seed, wdir, args.max_ram, args.force_kmp) #, args.canonical)
+        kmp_wrapper.sketch_folder(kmp_executable, args.input_folder, kmp_dir, n, k, z, r, eps, args.seed, args.canonical, wdir, args.max_ram, args.force_kmp) #, args.canonical)
     
     # compute similarity scores between Q and R using [exact Jaccard, minHash, syncmers + IBF]
     if args.force_kmp or not pathlib.Path(tmp_kmp_file).exists():
@@ -144,11 +144,23 @@ def extended_syncmers_experiment_main(args):
 
     random.seed(args.seed)
     tmp_i_sketch = wdir.joinpath(essentials.get_random_name("iblt.bin"))
-    kmp_wrapper.sketch(kmp_executable, args.first, tmp_i_sketch, n, args.k, args.z, args.repetitions, args.epsilon, args.seed, wdir, args.max_ram)
+    kmp_wrapper.sketch(kmp_executable, args.first, tmp_i_sketch, n, ek, args.z, args.repetitions, args.epsilon, args.seed, wdir, args.max_ram)
     tmp_j_sketch = wdir.joinpath(essentials.get_random_name("iblt.bin"))
-    kmp_wrapper.sketch(kmp_executable, args.second, tmp_j_sketch, n, args.k, args.z, args.repetitions, args.epsilon, args.seed, wdir, args.max_ram)
-    #TODO
-    
+    kmp_wrapper.sketch(kmp_executable, args.second, tmp_j_sketch, n, ek, args.z, args.repetitions, args.epsilon, args.seed, wdir, args.max_ram)
+    tmp_fulli_sketch = wdir.joinpath(essentials.get_random_name("iblt.bin"))
+    kmp_wrapper.sketch(kmp_executable, args.first, tmp_fulli_sketch, n, args.k, args.z, args.repetitions, args.epsilon, args.seed, wdir, args.max_ram)
+    tmp_fullj_sketch = wdir.joinpath(essentials.get_random_name("iblt.bin"))
+    kmp_wrapper.sketch(kmp_executable, args.second, tmp_fullj_sketch, n, args.k, args.z, args.repetitions, args.epsilon, args.seed, wdir, args.max_ram)
+
+    ok = kmp_wrapper.check_enhanced_extended_syncmers(kmp_executable, tmp_i_sketch, tmp_j_sketch, tmp_fulli_sketch, tmp_fullj_sketch, args.max_ram, args.first, args.second)
+    with open(args.output_csv, "a") as ohandle:
+        if (essentials.is_empty_file(args.output_csv)):
+            ohandle.write("reference,query,reference size,query size,ref check size,query check size,check\n")
+        isize = pathlib.Path(tmp_i_sketch).lstat().st_size
+        ecc_i = pathlib.Path(tmp_fulli_sketch).lstat().st_size
+        jsize = pathlib.Path(tmp_j_sketch).lstat().st_size
+        ecc_j = pathlib.Path(tmp_fullj_sketch).lstat().st_size
+        ohandle.write("{},{},{},{},{},{},{}\n".format(args.first, args.second, isize, jsize, ecc_i, ecc_j, ok))
 
 def minimizers_vs_syncmers_experiment_main(args):
     None

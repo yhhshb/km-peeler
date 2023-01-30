@@ -69,7 +69,7 @@ int diff_main(const argparse::ArgumentParser& args)
             if ((fp = gzopen(f.c_str(), "r")) == NULL) throw std::runtime_error("Unable to open the input file " + f + "\n");
             seq = kseq_init(fp);
             while (kseq_read(seq) >= 0) {
-                wrapper::kmer_view<kmer_t> view(seq->seq.s, seq->seq.l, mned.get_k());
+                wrapper::kmer_view<kmer_t> view(seq->seq.s, seq->seq.l, mned.get_k(), args.get<bool>("--canonical"));
                 sampler::syncmer_sampler syncmers(view.cbegin(), view.cend(), mmp_extractor, offset1, offset2);
                 for (auto itr = syncmers.cbegin(); itr != syncmers.cend(); ++itr) {
                     kmer_vectors[i].push_back(*itr);
@@ -210,6 +210,10 @@ argparse::ArgumentParser get_parser_diff()
         .help("z-mer offset inside syncmers")
         .scan<'u', uint8_t>()
         .default_value(uint8_t(0));
+    parser.add_argument("-c", "--canonical")
+        .help("Canonical k-mers")
+        .implicit_value(true)
+        .default_value(false);
     parser.add_argument("-m", "--max-ram")
         .help("RAM limit")
         .scan<'d', uint64_t>()

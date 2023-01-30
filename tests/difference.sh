@@ -40,9 +40,9 @@ IBLT2="$DUMPDIR/BS000694.iblt.bin"
 rm $IBLT1
 rm $IBLT2
 
-$KMPEXE build $FASTA1 $IBLT1 -n $N -k $K -z $Z --tmp-dir $TEMPDIR
-$KMPEXE build $FASTA2 $IBLT2 -n $N -k $K -z $Z --tmp-dir $TEMPDIR
-$KMPEXE diff $IBLT1 $IBLT2 -l "." --check $FASTA1 $FASTA2 -z $Z --offset 0 --tmp-dir $TEMPDIR
+$KMPEXE build $FASTA1 $IBLT1 -n $N -k $K -z $Z --tmp-dir $TEMPDIR -c
+$KMPEXE build $FASTA2 $IBLT2 -n $N -k $K -z $Z --tmp-dir $TEMPDIR -c
+$KMPEXE diff $IBLT1 $IBLT2 -l "." --check $FASTA1 $FASTA2 -z $Z --offset 0 --tmp-dir $TEMPDIR -c
 
 FASTA1="$INDIR/BS000694.1.fasta"
 FASTA2="$INDIR/BS000701.1.fasta"
@@ -52,6 +52,6 @@ IBLT2="$DUMPDIR/BS000701.iblt.bin"
 rm $IBLT1
 rm $IBLT2
 
-$KMPEXE build $FASTA1 $IBLT1 -n $N -k $K -z $Z --tmp-dir $TEMPDIR
-$KMPEXE build $FASTA2 $IBLT2 -n $N -k $K -z $Z --tmp-dir $TEMPDIR
-$KMPEXE diff $IBLT1 $IBLT2 -j "." --check $FASTA1 $FASTA2 -z $Z --offset 0 --tmp-dir $TEMPDIR -o ../../../tmp/binary_dumps/to_be_dumped.iblt.bin
+$KMPEXE build $FASTA1 $IBLT1 -n $N -k $K -z $Z --tmp-dir $TEMPDIR -c
+$KMPEXE build $FASTA2 $IBLT2 -n $N -k $K -z $Z --tmp-dir $TEMPDIR -c
+$KMPEXE diff $IBLT1 $IBLT2 -j "." --check $FASTA1 $FASTA2 -z $Z --offset 0 --tmp-dir $TEMPDIR -o ../../../tmp/binary_dumps/to_be_dumped.iblt.bin -c

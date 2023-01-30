@@ -39,6 +39,7 @@ int build_main(const argparse::ArgumentParser& args)
     uint64_t seed = args.get<uint64_t>("--seed");
     uint64_t max_ram = args.get<uint64_t>("--max-ram");
     uint64_t max_ram_bytes = max_ram * 1000000000ULL;
+    bool canonical = args.get<bool>("--canonical");
     bool verbose = args.get<bool>("--verbose");
 
     std::size_t k_max = (sizeof(kmer_t) * 8 / 2);
@@ -62,7 +63,7 @@ int build_main(const argparse::ArgumentParser& args)
     seq = kseq_init(fp);
 
     while (kseq_read(seq) >= 0) {
-        wrapper::kmer_view<kmer_t> view(seq->seq.s, seq->seq.l, k+x);
+        wrapper::kmer_view<kmer_t> view(seq->seq.s, seq->seq.l, k+x, canonical);
         sampler::syncmer_sampler syncmers(view.cbegin(), view.cend(), mmp_extractor, offset1, offset2);
         for (auto itr = syncmers.cbegin(); itr != syncmers.cend(); ++itr) {
             kmer_vector.push_back(*itr);
@@ -118,6 +119,10 @@ argparse::ArgumentParser get_parser_build()
         .help("extension of x bases after each syncmer")
         .scan<'u', uint8_t>()
         .default_value(uint8_t(0));
+    parser.add_argument("-c", "--canonical")
+        .help("Canonical k-mers")
+        .implicit_value(true)
+        .default_value(false);
     parser.add_argument("-r", "--repetitions")
         .help("number of hash functions for the IBLT")
         .scan<'u', uint8_t>()
