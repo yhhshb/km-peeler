@@ -27,7 +27,18 @@ class IBLT
         template <class Visitor> void visit(Visitor& visitor);
 
     private:
-        typedef std::stack<long long, std::vector<long long>> idx_stack_t;
+        class peel_bucket_state_t {
+            public:
+                peel_bucket_state_t() : index(std::numeric_limits<decltype(index)>::max()), negative(true) {}
+                peel_bucket_state_t(std::size_t idx, bool neg) : index(idx), negative(neg) {}
+                std::size_t get_index() const noexcept {return index;}
+                bool is_valid() const noexcept {return index != std::numeric_limits<decltype(index)>::max();}
+                bool is_negative() const noexcept {return negative;}
+                std::function<uint8_t(uint8_t)> get_update_operation() const noexcept {return negative ? [](uint8_t c){return c + 1;} : [](uint8_t c){return c - 1;};}
+            private:
+                std::size_t index;
+                bool negative;
+        };
         const std::array<float, 8> ck_table = {0, 0, 0, 1.222, 1.295, 1.425, 1.570, 1.721};
         //const removed since we need loading
         uint8_t klen;
@@ -57,10 +68,9 @@ class IBLT
         void dec_count_at(std::size_t idx) noexcept;
         void xor_at(std::size_t idx, uint8_t const * const kmer, uint64_t header);
         std::size_t unpack_at(std::size_t idx) noexcept;
-        int is_peelable(std::size_t idx) noexcept;
-        long long find_peelable_bucket() noexcept;
+        bool is_peelable(std::size_t idx, bool& negative) noexcept;
         std::vector<uint8_t> get_payload(std::size_t idx) noexcept;
-        long long peel(uint8_t const * const kmer, std::size_t kmer_byte_size, std::size_t origin_bucket, std::function<uint8_t(uint8_t)>);//, idx_stack_t& idxs);
+        peel_bucket_state_t peel(uint8_t const * const kmer, std::size_t kmer_byte_size, peel_bucket_state_t origin_bucket);
 
         friend IBLT load(std::string filename, std::size_t& byte_size);
         friend std::ostream& operator<<(std::ostream& os, IBLT const& obj);

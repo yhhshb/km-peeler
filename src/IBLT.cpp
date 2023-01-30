@@ -99,42 +99,33 @@ void IBLT::subtract(IBLT const& other)
 
 IBLT::failure_t IBLT::list(std::vector<std::vector<uint8_t>>& positives, std::vector<std::vector<uint8_t>>& negatives)
 {
+    auto find_peelable_bucket = [this]()
+    {
+        bool negative = false;
+        for (std::size_t i = 0; i < number_of_buckets; ++i)
+            if (is_peelable(i, negative)) 
+                return peel_bucket_state_t(i, negative);
+        return peel_bucket_state_t();
+    };
     const std::size_t peeling_max_iterations = 2 * max_diff;
     std::size_t peeled_count = 0;
-    long long next;
-    // idx_stack_t peelable_idx_stack;
     std::vector<uint8_t> buffer;
     buffer.resize(payload_buffer.size());
-    // std::cerr << "[List] ";
-    while (
-        (next = find_peelable_bucket()) != static_cast<long long>(number_of_buckets) and 
-         peeled_count < peeling_max_iterations) // FIXME
+    peel_bucket_state_t next;
+    while ((next = find_peelable_bucket()).is_valid() and peeled_count < peeling_max_iterations)
     {
-        // peelable_idx_stack.push(tmp);
-        // std::cerr << "(found peelable bucket at " << tmp << ")\n";
-        // while (not peelable_idx_stack.empty()) {
-        while (next != static_cast<long long>(number_of_buckets) and peeled_count < peeling_max_iterations) {
-            // auto idx = peelable_idx_stack.top();
-            // peelable_idx_stack.pop();
+        while (next.is_valid() and peeled_count < peeling_max_iterations) {
             assert(buffer.size() == payload_buffer.size());
             buffer = payload_buffer; // make local copy of kmer since payload_buffer is a shared "global" method variable
-            if (next < 0) {
-                unpack_at(-next);
-                negatives.push_back(payload_buffer);
-                next = peel(buffer.data(), payload_buffer.size(), -next, [](uint8_t c){return c + 1;}); //, peelable_idx_stack);
-            } else {
-                unpack_at(next);
-                positives.push_back(payload_buffer);
-                next = peel(buffer.data(), payload_buffer.size(), next, [](uint8_t c){return c - 1;}); //, peelable_idx_stack);
-            }
+            unpack_at(next.get_index());
+            if (next.is_negative()) negatives.push_back(payload_buffer);
+            else positives.push_back(payload_buffer);
+            next = peel(buffer.data(), payload_buffer.size(), next);
             peeled_count = positives.size() + negatives.size();
         }
-        // peeled_count = positives.size() + negatives.size();
     }
     peeled_count = positives.size() + negatives.size();
     if (peeled_count >= peeling_max_iterations) return INFINITE_LOOP;
-    // for (auto byte : hp_buckets) if (byte != 0) return UNPEELABLE;
-    // for (auto c : counts) if (c != 0) return UNPEELABLE;
     auto count_hist = [&](std::array<std::size_t, 4>& hist) {
         for (uint8_t c : counts) {
             for (uint8_t i = 0; i < 4; ++i) {
@@ -172,11 +163,12 @@ uint8_t IBLT::get_k() const noexcept
 void IBLT::dump_contents() noexcept
 {
     std::size_t chunk_size = number_of_buckets / reps;
+    bool negative;
     for (std::size_t i = 0; i < number_of_buckets; ++i) {
         fprintf(stderr, "%u | ", get_count_at(i));
         dump_byte_vec(stderr, &hp_buckets.at(i*bucket_size), bucket_size);
         fprintf(stderr, "--> ");
-        if (is_peelable(i)) fprintf(stderr, "peelable");
+        if (is_peelable(i, negative)) fprintf(stderr, "peelable");
         else fprintf(stderr, "unpeelable");
         fprintf(stderr, "\n");
         if ((i+1) % chunk_size == 0) fprintf(stderr, "\n");
@@ -315,29 +307,22 @@ std::size_t IBLT::unpack_at(std::size_t idx) noexcept
     return idx / (number_of_buckets / reps);
 }
 
-int IBLT::is_peelable(std::size_t index) noexcept
+bool IBLT::is_peelable(std::size_t index, bool& negative) noexcept
 {
     assert(index < number_of_buckets);
+    negative = false;
     auto c = get_count_at(index);
-    if (c == 0 or c == 2) return 0;
+    if (c == 0 or c == 2) return false;
     std::size_t row = unpack_at(index); // fill buffers with bucket values
     auto [idx, cval] = hash_kmer(payload_buffer.data(), row);
-    // std::cerr << " [is peelable] row(" << index << ") = " << row << ", index check = " << idx;
-    if (index != idx) return 0;
+    if (index != idx) return false;
     auto cval_ptr = reinterpret_cast<uint8_t*>(&cval);
     cval_ptr[hash_redundancy_code_buffer.size()-1] &= mask;
-    if (std::equal(hash_redundancy_code_buffer.cbegin(), hash_redundancy_code_buffer.cend(), cval_ptr)) 
-        return c == 1 ? 1 : -1; // check hrc and recomputed hash value
-    return 0;
-}
-
-long long IBLT::find_peelable_bucket() noexcept
-{
-    int sign;
-    for (std::size_t i = 0; i < number_of_buckets; ++i) {
-        if ((sign = is_peelable(i))) return sign * i;
+    if (std::equal(hash_redundancy_code_buffer.cbegin(), hash_redundancy_code_buffer.cend(), cval_ptr)) {
+        if (c == 3) negative = true;
+        return true;
     }
-    return static_cast<long long>(number_of_buckets);
+    return false;
 }
 
 std::vector<uint8_t> IBLT::get_payload(std::size_t idx) noexcept
@@ -350,29 +335,24 @@ std::vector<uint8_t> IBLT::get_payload(std::size_t idx) noexcept
  * This is basically a modified version of remove. New peelable buckets are added to the stack as soon as they are found.
  * Note how peel use the right operation depending on the sign of the bucket to be peeled (operation op) whereas remove always decrements a counter.
  */
-long long IBLT::peel(uint8_t const * const kmer, std::size_t kmer_byte_size, std::size_t origin_bucket, std::function<uint8_t(uint8_t)> op) //, idx_stack_t& idxs)
+IBLT::peel_bucket_state_t IBLT::peel(uint8_t const * const kmer, std::size_t kmer_byte_size, peel_bucket_state_t origin_bucket)
 {
     assert(kmer_byte_size == payload_buffer.size());
-    // std::cerr << "origin = " << origin_bucket << "[\n";
+    // std::cerr << "origin = " << origin_bucket.get_index() << " [";
     uint8_t hit = 0;
     bool pushed = false;
-    long long next = static_cast<long long>(number_of_buckets);
+    bool negative;
+    peel_bucket_state_t next;
     for (uint8_t i = 0; i < reps; ++i) {
         auto [idx, cval] = hash_kmer(kmer, i);
-        if (idx == origin_bucket) ++hit;
-        // std::cerr << "\tcounts[" << idx << "] = " << uint32_t(get_count_at(idx)) << " -> ";
-        update_count_at(idx, op);
-        // std::cerr << uint32_t(get_count_at(idx));
+        if (idx == origin_bucket.get_index()) ++hit;
+        // std::cerr << idx << " (" << idx % (number_of_buckets / reps) << ") ";
+        update_count_at(idx, origin_bucket.get_update_operation());
         xor_at(idx, kmer, cval);
-        int sign;
-        if (not pushed and (sign = is_peelable(idx))) {
-            // if (sign > 0) std::cerr << "(+) ";
-            // else std::cerr << "(-) ";
-            // idxs.push(
-            next = sign * static_cast<long long>(idx);//);
+        if (not pushed and is_peelable(idx, negative)) {
+            next = peel_bucket_state_t(idx, negative);
             pushed = true; // This is necessary because all peelable elements coming from the same k-mer are then updated later
         }
-        // std::cerr << "]\n";
     }
     // std::cerr << "]\n";
     assert(hit == 1);
