@@ -29,7 +29,7 @@ if __name__ == "__main__":
     salmonella_zip_file.rename(salmonella_dataset_folder.joinpath(salmonella_zip_file))
     
     print("Downloading tuberculosis dataset")
-    this_path = pathlib.Path(sys.argv[0])
+    this_path = pathlib.Path(sys.argv[0]).parent.absolute()
     tuberculosis_accessions = this_path.joinpath("tuberculosis_accessions.txt")
     assert tuberculosis_accessions.exists()
     with open(tuberculosis_accessions, "r") as th:

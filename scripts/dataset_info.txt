@@ -1,0 +1,8 @@
+1263 Salmonella Enterica genomes:
+DOI: 10.5281/zenodo.4338293
+url: https://doi.org/10.5281/zenodo.4338293
+Markdown: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4338293.svg)](https://doi.org/10.5281/zenodo.4338293)
+
+Tuberculosis:
+paper: Verma H, Nagar S, Vohra S, Pandey S, Lal D, Negi RK, Lal R, Rawat CD. Genome analyses of 174 strains of Mycobacterium tuberculosis provide insight into the evolution of drug resistance and reveal potential drug targets. Microb Genom. 2021 Mar;7(3):mgen000542. doi: 10.1099/mgen.0.000542. Epub 2021 Mar 22. PMID: 33750515; PMCID: PMC8190606.
+accession numbers: see file tuberculosis_accessions.txt
