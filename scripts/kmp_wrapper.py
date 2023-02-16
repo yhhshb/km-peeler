@@ -22,21 +22,23 @@ def get_maximum_difference_from_byte_size(byte_size: int, k: int, r: int, epsilo
     assert 0 <= epsilon <= 1
     bit_size = byte_size * 8
     new_guess = int(bit_size / get_bit_size(1, k, r, epsilon))
-    guess = 0
+    guess = [0 for _ in range(3)]
+    i = 0
     positive_front = 0
-    while(new_guess != guess and positive_front != new_guess):
-        guess = new_guess
+    while(new_guess not in guess and positive_front != new_guess):
+        guess[i] = new_guess
         # print(guess)
-        size = get_bit_size(guess, k, r, epsilon)
+        size = get_bit_size(guess[i], k, r, epsilon)
         if size > bit_size:
-            positive_front = guess
+            positive_front = guess[i]
             size_overshoot = (size - bit_size) / bit_size
             # print("-" + str(size_overshoot))
-            new_guess = int(guess - guess * size_overshoot)
+            new_guess = int(guess[i] - guess[i] * size_overshoot)
         else:
             size_undershoot = (bit_size - size) / bit_size
             # print("+" + str(size_undershoot))
-            new_guess = int(guess + guess * size_undershoot)
+            new_guess = int(guess[i] + guess[i] * size_undershoot)
+        i = (i + 1) % 3
     return new_guess
 
 def sketch(executable, input_fastx: str, output_sketch: str, n: int, k: int, z: str, r: int, epsilon: float, seed: int, canonical: bool, tmp_dir, max_ram: int):

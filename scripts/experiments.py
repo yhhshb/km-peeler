@@ -97,7 +97,7 @@ def jaccard_experiment_main(args):
     for sampling_rate in args.sampling_rates:
         assert sampling_rate >= 0
         header_names.append("syncj r={}".format(sampling_rate))
-        kmp_wrapper.sketch_folder(kmp_executable, args.input_folder, kmp_dir, n, k, z, r, eps, args.seed, args.canonical, wdir, args.max_ram, args.force_kmp) #, args.canonical)
+        kmp_wrapper.sketch_folder(kmp_executable, args.input_folder, kmp_dir, n, k, z, r, eps, args.seed, args.canonical, wdir, args.max_ram, args.force_kmp)
     
     # compute similarity scores between Q and R using [exact Jaccard, minHash, syncmers + IBF]
     if args.force_kmp or not pathlib.Path(tmp_kmp_file).exists():
