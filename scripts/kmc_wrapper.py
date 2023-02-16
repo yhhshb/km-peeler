@@ -29,8 +29,8 @@ def kmc_count(k: int, input_fastx: str, output_path: str, kmc_dummy_folder: str,
 
     kmc_command = ["kmc"]
     if not canonical: kmc_command.extend(["-b"])
-    kmc_command.extend(["-k"+str(k), "-ci0", "-cs4294967295", "-cx4294967295", "-m"+str(mmemory), fmt, input_fastx, intermidiate_file, kmc_dummy_folder])
-    out = subprocess.run(kmc_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    kmc_command.extend(["-k"+str(k), "-ci0", "-cs4294967295", "-cx4294967295", "-m"+str(mmemory), fmt, input_fastx, str(intermidiate_file), str(kmc_dummy_folder)])
+    out = subprocess.run(kmc_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) # on macOS terminal write "ulimit -n 2048" before launching
     if out.returncode != 0: raise RuntimeError("KMC failed on file " + input_fastx)
     if (not unsorted):
         out = subprocess.run(["kmc_tools", "transform", intermidiate_file, "sort", sorted_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -60,7 +60,7 @@ def kmc_count_folder(input_folder, output_folder, ks: list[int], kmc_dummy_folde
     output_dir = pathlib.Path(output_folder)
     assert input_dir.is_dir()
     assert type(ks) == type(list())
-    assert mmemory > 0
+    assert 0 < mmemory
     fastxs = essentials.get_fastx_in_folder(input_dir)
     _, basename = essentials.get_path_leaf(input_dir)
     working_folder = output_dir.joinpath(basename)
@@ -69,6 +69,10 @@ def kmc_count_folder(input_folder, output_folder, ks: list[int], kmc_dummy_folde
     except FileExistsError: pass
     try: os.makedirs(kmc_dummy_folder)
     except FileExistsError: pass
+
+    if sys.platform == "darwin":
+        out = subprocess.run(["ulimit", "-n", "2048"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if out.returncode != 0: raise RuntimeError("Unable to increment temporary file limit on macOS")
 
     kmced_files = list()
     for k in ks:

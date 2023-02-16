@@ -172,7 +172,7 @@ argparse::ArgumentParser get_parser_correct()
         .help("extended IBLT from which to subtract");
     parser.add_argument("correction-minuend")
         .help("correction IBLT of the minuend (containing all k-mers)");
-    parser.add_argument("subtrahend")
+    parser.add_argument("extended-subtrahend")
         .help("extended IBLT to subtract");
     parser.add_argument("correction-subtrahend")
         .help("correction IBLT of the subtrahend (containing all k-mers)");

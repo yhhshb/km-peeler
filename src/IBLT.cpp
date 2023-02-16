@@ -1,6 +1,7 @@
-#include "../include/IBLT.hpp"
-
 #include <cmath>
+#include <cassert>
+
+#include "../include/IBLT.hpp"
 #include "../include/io.hpp"
 #include "../include/utils.hpp"
 

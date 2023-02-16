@@ -97,8 +97,10 @@ def pairwise_jaccard(executable, a, b) -> str:
 
 def check_enhanced_extended_syncmers(executable, a, b, ecc_a, ecc_b, max_ram: int, A, B):
     out = subprocess.run([executable, "correct", a, ecc_a, b, ecc_b, "-m", str(max_ram), "--check", A, B], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-    if out.returncode != 0: raise RuntimeError("Unable to remove false positives")
     msg = out.stderr.decode("utf-8")
+    if out.returncode != 0: 
+        raise RuntimeError("Unable to remove false positives")
+    sys.stderr.write(msg)
     return msg.find("OK") == (len(msg) - 3)
 
 def sketch_each_sequence(executable, algo: str, input_fastx, output_folder, k: int, m: str, n: int, r: int, epsilon: float, seed: int):

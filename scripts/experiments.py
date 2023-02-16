@@ -103,13 +103,13 @@ def jaccard_experiment_main(args):
     if args.force_kmp or not pathlib.Path(tmp_kmp_file).exists():
         with open(tmp_kmp_file, "w") as kmphandle:
             kmphandle.write("reference,query,size,s,n,{}\n".format(','.join(header_names)))
-            for query in query_set:
-                for reference in reference_set:
+            for reference in reference_set:
+                for query in query_set:
                     sync_ibfjs = list()
                     for sampling_rate in args.sampling_rates:
                         query_name = kmp_dir.joinpath(kmp_wrapper.get_outname(query))
                         reference_name = kmp_dir.joinpath(kmp_wrapper.get_outname(reference))
-                        sync_ibfj = kmp_wrapper.pairwise_jaccard(kmp_executable, query_name, reference_name)
+                        sync_ibfj = kmp_wrapper.pairwise_jaccard(kmp_executable, reference_name, query_name)
                         sync_ibfjs.append(sync_ibfj)
                     kmphandle.write("{},{},{},{},{},{}\n".format(reference, query, args.sketch_size, s, n, ','.join(map(str, sync_ibfjs))))
     
@@ -124,15 +124,14 @@ def jaccard_experiment_main(args):
 
 def extended_syncmers_experiment_main(args):
     kmp_executable = args.__bin_path.joinpath("kmp")
-    cws_executable = args.__bin_path.joinpath("cws")
+    # cws_executable = args.__bin_path.joinpath("cws")
     assert kmp_executable.exists()
     assert 0 < args.k <= 32
     assert 0 <= args.z <= args.k
     assert args.extension > 0
     assert 3 <= args.repetitions <= 7
-    assert (args.query_number != None and args.query_number >= 0) or (args.query_fraction != None and 0 <= args.query_fraction <= 1)
     assert args.sketch_size >= 0
-    assert args.first.file() and args.second.is_file()
+    assert args.first.exists() and args.second.is_file()
     assert args.tmp_dir.exists() and args.tmp_dir.is_dir()
     ek = args.extension + args.k
     assert ek <= 32
@@ -144,13 +143,13 @@ def extended_syncmers_experiment_main(args):
 
     random.seed(args.seed)
     tmp_i_sketch = wdir.joinpath(essentials.get_random_name("iblt.bin"))
-    kmp_wrapper.sketch(kmp_executable, args.first, tmp_i_sketch, n, ek, args.z, args.repetitions, args.epsilon, args.seed, wdir, args.max_ram)
+    kmp_wrapper.sketch(kmp_executable, args.first, tmp_i_sketch, n, ek, args.z, args.repetitions, args.epsilon, args.seed, args.canonical, wdir, args.max_ram)
     tmp_j_sketch = wdir.joinpath(essentials.get_random_name("iblt.bin"))
-    kmp_wrapper.sketch(kmp_executable, args.second, tmp_j_sketch, n, ek, args.z, args.repetitions, args.epsilon, args.seed, wdir, args.max_ram)
+    kmp_wrapper.sketch(kmp_executable, args.second, tmp_j_sketch, n, ek, args.z, args.repetitions, args.epsilon, args.seed, args.canonical, wdir, args.max_ram)
     tmp_fulli_sketch = wdir.joinpath(essentials.get_random_name("iblt.bin"))
-    kmp_wrapper.sketch(kmp_executable, args.first, tmp_fulli_sketch, n, args.k, args.z, args.repetitions, args.epsilon, args.seed, wdir, args.max_ram)
+    kmp_wrapper.sketch(kmp_executable, args.first, tmp_fulli_sketch, n, args.k, args.z, args.repetitions, args.epsilon, args.seed, args.canonical, wdir, args.max_ram)
     tmp_fullj_sketch = wdir.joinpath(essentials.get_random_name("iblt.bin"))
-    kmp_wrapper.sketch(kmp_executable, args.second, tmp_fullj_sketch, n, args.k, args.z, args.repetitions, args.epsilon, args.seed, wdir, args.max_ram)
+    kmp_wrapper.sketch(kmp_executable, args.second, tmp_fullj_sketch, n, args.k, args.z, args.repetitions, args.epsilon, args.seed, args.canonical, wdir, args.max_ram)
 
     ok = kmp_wrapper.check_enhanced_extended_syncmers(kmp_executable, tmp_i_sketch, tmp_j_sketch, tmp_fulli_sketch, tmp_fullj_sketch, args.max_ram, args.first, args.second)
     with open(args.output_csv, "a") as ohandle:
