@@ -6,7 +6,7 @@ import subprocess
 salmonella_url = "https://zenodo.org/record/4338293/files/assemblies.zip"
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 2:
         sys.stderr.write("Usage: python {} <output folder>\n".format(sys.argv[0]))
         raise RuntimeError("Too few arguments")
     dataset_folder = pathlib.Path(sys.argv[1])
