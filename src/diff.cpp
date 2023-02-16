@@ -54,7 +54,7 @@ int diff_main(const argparse::ArgumentParser& args)
         else throw std::invalid_argument("syncmer parameter z used to build the IBLTs is required when checking");
         if (args.is_used("--offset")) {
             offset1 = args.get<uint8_t>("--offset");
-            assert(mned.get_k() > z);
+            if (mned.get_k() < z) throw std::runtime_error("k smaller than syncmer parameter z");
             offset2 = offset1 ? offset1 : mned.get_k() - z;
         } else {
             throw std::invalid_argument("offset option used to build the IBLTs is required when checking");

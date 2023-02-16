@@ -2,6 +2,7 @@
 #define SYNCMER_SAMPLER_HPP
 
 #include <vector>
+#include <cassert>
 
 namespace sampler {
 

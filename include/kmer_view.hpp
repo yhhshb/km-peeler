@@ -3,6 +3,7 @@
 
 #include <string>
 #include <optional>
+#include <cassert>
 
 #include "constants.hpp"
 
