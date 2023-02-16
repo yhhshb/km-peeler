@@ -32,9 +32,8 @@ class syncmer_sampler
 
                 friend bool operator==(const_iterator const& a, const_iterator const& b) 
                 {
-                    bool same_range = (a.parent_sampler.itr_start == b.parent_sampler.itr_start and a.parent_sampler.itr_stop == b.parent_sampler.itr_stop);
                     bool same_start = a.itr_start == b.itr_start;
-                    return same_range and same_start;
+                    return (a.parent_sampler == b.parent_sampler) and same_start;
                 };
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
         };
@@ -50,6 +49,13 @@ class syncmer_sampler
         PropertyExtractor const& extor;
         uint16_t soffset;
         uint16_t eoffset;
+
+        friend bool operator==(syncmer_sampler const& a, syncmer_sampler const& b)
+        {
+            bool same_range = (a.itr_start == b.itr_start and a.itr_stop == b.itr_stop);
+            return same_range;
+        };
+        friend bool operator!=(syncmer_sampler const& a, syncmer_sampler const& b) {return not (a == b);};
 };
 
 template <class Iterator, typename PropertyExtractor>
