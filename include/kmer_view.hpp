@@ -126,10 +126,11 @@ kmer_view<KmerType>::const_iterator::operator++()
         return *this;
     }
     uint8_t c = constants::seq_nt4_table[parent_view->seq[char_idx++]];
+    // std::cerr << "[k-mer view, operator++] char idx = " << char_idx << std::endl;
     // if (char_idx == parent_view->slen) parent_view = nullptr;
     if (c < 4) {
         kmer_buffer[0] = (kmer_buffer[0] << 2 | c) & mask;            /* forward m-mer */
-        kmer_buffer[1] = ((kmer_buffer[1] >> 2) | ((3ULL ^ c) << shift)) & mask; /* reverse m-mer */
+        kmer_buffer[1] = ((kmer_buffer[1] >> 2) | ((3ULL ^ c) << shift)); /* reverse m-mer */
         if (parent_view->canon and kmer_buffer[0] != kmer_buffer[1]) strand = kmer_buffer[0] < kmer_buffer[1] ? 0 : 1;  // strand, if symmetric k-mer then use previous strand
         ++bases_since_last_break;
     } else {
@@ -151,17 +152,24 @@ template <typename KmerType>
 void 
 kmer_view<KmerType>::const_iterator::find_first_good_kmer()
 {
+    assert(char_idx <= parent_view->slen);
+    // std::cerr << "[k-mer view, find first good k-mer] BEGIN char idx = " << char_idx << ", view len = " << parent_view->slen << std::endl;
     while(char_idx < parent_view->slen and bases_since_last_break < parent_view->klen) {
         uint8_t c = constants::seq_nt4_table.at(parent_view->seq[char_idx++]);
         if (c < 4) {
             kmer_buffer[0] = (kmer_buffer[0] << 2 | c) & mask;            /* forward m-mer */
-            kmer_buffer[1] = ((kmer_buffer[1] >> 2) | (3ULL ^ c) << shift) & mask; /* reverse m-mer */
+            kmer_buffer[1] = ((kmer_buffer[1] >> 2) | (3ULL ^ c) << shift); /* reverse m-mer */
             if (parent_view->canon and kmer_buffer[0] != kmer_buffer[1]) strand = kmer_buffer[0] < kmer_buffer[1] ? 0 : 1;
             ++bases_since_last_break;
         } else {
             bases_since_last_break = 0;
         }
     }
+    if (bases_since_last_break < parent_view->klen) { // deals with N's at the end of sequences, otherwise infinite loop
+        bases_since_last_break = 0;
+        ++char_idx;
+    }
+    // std::cerr << "[k-mer view, find first good k-mer] END char idx = " << char_idx << std::endl;
 }
 
 template <typename KmerType>
