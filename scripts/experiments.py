@@ -78,13 +78,13 @@ def jaccard_experiment_main(args):
     _ = kmc_wrapper.kmc_count_folder(args.input_folder, kmc_dir, [k], kmc_tmp_dir, args.max_ram, False, args.canonical, args.force_kmc)
     if args.force_kmc or not pathlib.Path(tmp_kmc_file).exists():
         with open(tmp_kmc_file, "w") as kmchandle:
-            kmchandle.write("reference,query,exj\n")
+            kmchandle.write("reference,query,exj,exn\n")
             for query in query_set:
                 for reference in reference_set:
                     _, _, _, _, refkmc = kmc_wrapper.get_kmc_paths(k, reference, kmc_dataset_dir) #retrieve reference file name
                     _, _, _, _, qrykmc = kmc_wrapper.get_kmc_paths(k, query, kmc_dataset_dir) #retrieve query file name
-                    exj, _, _ = kmc_wrapper.kmc_jaccard(cws_executable, qrykmc, refkmc) # ignore weighted jaccard and true symmetric difference size
-                    kmchandle.write("{},{},{}\n".format(reference, query, exj))
+                    exj, _, exact_n = kmc_wrapper.kmc_jaccard(cws_executable, qrykmc, refkmc) # ignore weighted jaccard and true symmetric difference size
+                    kmchandle.write("{},{},{},{}\n".format(reference, query, exj, exact_n))
 
     # Build MASH sketches on input sequences
     sys.stderr.write("Mash estimations\n")
@@ -119,7 +119,7 @@ def jaccard_experiment_main(args):
     kmp_df = pd.read_csv(tmp_kmp_file, sep=',')
     joined = pd.merge(kmc_df, mash_df, on=["reference", "query"], how="inner")
     joined = pd.merge(joined, kmp_df, on=["reference", "query"], how="inner")
-    joined = joined[["reference", "query", "size", "s", "n", "exj", "mhj"] + header_names] # drop unused columns
+    joined = joined[["reference", "query", "size", "s", "n", "exn", "exj", "mhj"] + header_names] # drop unused columns
     joined.to_csv(args.output_csv, sep=',', header=True, index=False)
 
 def extended_syncmers_experiment_main(args):
