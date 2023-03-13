@@ -6,3 +6,7 @@ Markdown: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4338293.svg)](http
 Tuberculosis:
 paper: Verma H, Nagar S, Vohra S, Pandey S, Lal D, Negi RK, Lal R, Rawat CD. Genome analyses of 174 strains of Mycobacterium tuberculosis provide insight into the evolution of drug resistance and reveal potential drug targets. Microb Genom. 2021 Mar;7(3):mgen000542. doi: 10.1099/mgen.0.000542. Epub 2021 Mar 22. PMID: 33750515; PMCID: PMC8190606.
 accession numbers: see file tuberculosis_accessions.txt
+
+cluster info:
+python3 get_similar_cluster.py tuberculosis.mash_triangle.tsv 0.999 datasets/tubercu_similar/ > /dev/null
+python3 get_similar_cluster.py gonorroheae.mash_triangle.tsv 0.9996 datasets/ngon_similar/ > /dev/null
