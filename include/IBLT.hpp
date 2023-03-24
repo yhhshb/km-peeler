@@ -75,6 +75,7 @@ class IBLT
 
         friend IBLT load(std::string filename, std::size_t& byte_size);
         friend std::ostream& operator<<(std::ostream& os, IBLT const& obj);
+        friend bool operator==(IBLT const& iblt1, IBLT const& iblt2);
 };
 
 template <class Visitor>
@@ -98,6 +99,8 @@ void IBLT::visit(Visitor& visitor)
 IBLT load(std::string filename, std::size_t& byte_size);
 std::ostream& operator<<(std::ostream& os, IBLT const& obj);
 std::ostream& operator<<(std::ostream& os, IBLT::failure_t const& obj);
+bool operator==(IBLT const& iblt1, IBLT const& iblt2);
+bool operator!=(IBLT const& iblt1, IBLT const& iblt2);
 
 } // namespace kmp
 

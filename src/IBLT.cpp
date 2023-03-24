@@ -401,4 +401,38 @@ std::ostream& operator<<(std::ostream& os, IBLT::failure_t const& err)
     return os;
 }
 
+bool operator==(IBLT const& iblt1, IBLT const& iblt2)
+{
+    // (1) hash is hard-coded
+    // (2) as well as ck_table
+    bool params_check = 
+        iblt1.klen == iblt2.klen and
+        iblt1.reps == iblt2.reps and
+        iblt1.eps == iblt2.eps and
+        iblt1.max_diff == iblt2.max_diff and
+        iblt1.pseed == iblt2.pseed and
+        iblt1.hrc_bit_size == iblt2.hrc_bit_size and
+        iblt1.prefix_len == iblt2.prefix_len and
+        iblt1.mask == iblt2.mask and
+        iblt1.number_of_inserted_items == iblt2.number_of_inserted_items and
+        iblt1.number_of_buckets == iblt2.number_of_buckets and
+        iblt1.bucket_size == iblt2.bucket_size and
+        iblt1.counts.size() == iblt2.counts.size() and
+        iblt1.hp_buckets.size() == iblt2.hp_buckets.size();
+    bool counts_check = true;
+    if (params_check)
+        for (std::size_t i = 0; i < iblt1.counts.size() and counts_check; ++i) 
+            if (iblt1.counts.at(i) != iblt2.counts.at(i)) counts_check = false;
+    bool buckets_check = true;
+    if (params_check)
+        for (std::size_t i = 0; i < iblt1.hp_buckets.size() and buckets_check; ++i) 
+            if (iblt1.hp_buckets.at(i) != iblt2.hp_buckets.at(i)) buckets_check = false;
+    return params_check and counts_check and buckets_check;
+}
+
+bool operator!=(IBLT const& iblt1, IBLT const& iblt2)
+{
+    return not (iblt1 == iblt2);
+}
+
 }

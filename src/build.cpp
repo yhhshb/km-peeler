@@ -78,14 +78,25 @@ int build_main(const argparse::ArgumentParser& args)
         std::cerr << iblt << "\n\n";
     }
     sampler::ordered_unique_sampler unique_kmers(kmer_vector.cbegin(), kmer_vector.cend());
+    std::size_t unique_kmers_size = 0;
     for (auto itr = unique_kmers.cbegin(); itr != unique_kmers.cend(); ++itr) {
         auto val = *itr;
         auto vptr = reinterpret_cast<uint8_t*>(&val);
         kmp::little2big(vptr, sizeof(val));
         iblt.insert(vptr, sizeof(val)); // FIXME hide endian check inside insert
+        ++unique_kmers_size;
     }
+    if (verbose) std::cerr << "Found " << unique_kmers_size << " unique syncmers\n";
     std::cerr << "Written IBLT of " << io::store(iblt, output_filename) << " Bytes\n";
 
+    if (args.get<bool>("--check")) {
+        std::size_t loaded_bytes = 0;
+        IBLT loaded = load(output_filename, loaded_bytes);
+        std::cerr << "Re-loaded " << loaded_bytes << " bytes\n";
+        if (loaded != iblt) std::cerr << "FAILED";
+        else std::cerr << "Everything is OK";
+        std::cerr << std::endl;
+    }
     return 0;
 }
 
@@ -142,6 +153,10 @@ argparse::ArgumentParser get_parser_build()
         .help("RAM limit")
         .scan<'d', uint64_t>()
         .default_value(uint64_t(6));
+    parser.add_argument("-C", "--check")
+        .help("Check saving/loading consistency")
+        .implicit_value(true)
+        .default_value(false);
     parser.add_argument("-v", "--verbose")
         .help("increase output verbosity")
         .default_value(false)

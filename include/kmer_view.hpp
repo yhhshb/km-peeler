@@ -97,7 +97,9 @@ kmer_view<KmerType>::get_k() const noexcept
 template <typename KmerType>
 kmer_view<KmerType>::const_iterator::const_iterator(kmer_view const* view, [[maybe_unused]] int dummy_end) noexcept
     : parent_view(view), char_idx(view->slen + 1), strand(0), bases_since_last_break(0)
-{}
+{
+    if (parent_view->klen) shift = 2 * (parent_view->klen - 1);
+}
 
 template <typename KmerType>
 kmer_view<KmerType>::const_iterator::const_iterator(kmer_view const* view) noexcept
@@ -105,6 +107,7 @@ kmer_view<KmerType>::const_iterator::const_iterator(kmer_view const* view) noexc
 {
     if (2 * parent_view->klen != sizeof(mask) * 8) mask = (KmerType(1) << (2 * parent_view->klen)) - 1;
     else mask = std::numeric_limits<decltype(mask)>::max();
+    if (parent_view->klen) shift = 2 * (parent_view->klen - 1);
     find_first_good_kmer();
 }
 

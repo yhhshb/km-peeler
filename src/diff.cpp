@@ -20,7 +20,8 @@ namespace kmp {
 
 int diff_main(const argparse::ArgumentParser& args)
 {
-    std::size_t loaded_bytes, m_size, s_size;
+    std::size_t loaded_bytes = 0; 
+    std::size_t m_size, s_size;
     uint64_t max_ram = args.get<uint64_t>("--max-ram");
     max_ram *= 1000000000ULL;
     std::string tmp_dir = args.get<std::string>("--tmp-dir");
@@ -83,18 +84,21 @@ int diff_main(const argparse::ArgumentParser& args)
         std::set_symmetric_difference(mned_set.cbegin(), mned_set.cend(), 
                                       sbhd_set.cbegin(), sbhd_set.cend(), 
                                       std::back_inserter(symmetric_difference));
-        std::vector<kmer_t> dummy;
-        std::set_difference(mned_set.cbegin(), mned_set.cend(), 
-                            sbhd_set.cbegin(), sbhd_set.cend(), 
-                            std::back_inserter(dummy));
-        if (verbose) std::cerr << "exact one-sided difference (minuend - subtrahend) of size " << dummy.size() << "\n";
+        if (verbose) {
+            // std::vector<kmer_t> dummy;
+            // std::set_difference(mned_set.cbegin(), mned_set.cend(), 
+            //                     sbhd_set.cbegin(), sbhd_set.cend(), 
+            //                     std::back_inserter(dummy));
+            std::cerr << "[Verbose] Exact symmetric difference of size " << symmetric_difference.size() << "\n";
+            // std::cerr << "[Verbose] Exact one-sided difference (minuend - subtrahend) of size " << dummy.size() << "\n";
+        }
     }
 
     std::vector<std::vector<uint8_t>> p, n;
     IBLT::failure_t err = mned.list(p, n);
     if (args.get<std::string>("--after").length()) io::store(mned, args.get<std::string>("--after"));
     if (err and verbose) std::cerr << "------------" << err << "------------\n";
-    if (verbose) std::cerr << "Retrieved " << p.size() << " and " << n.size() << " elements by peeling\n";
+    if (verbose) std::cerr << "[Verbose] Retrieved " << p.size() << " and " << n.size() << " elements by peeling\n";
 
     if (list_filename.length() or jaccard_filename.length()) {
         auto cout_buffer_save = std::cout.rdbuf();
@@ -128,6 +132,12 @@ int diff_main(const argparse::ArgumentParser& args)
                 if (intersection_size != s_size - s_diff_size) {
                     std::cout << kmp::IBLT::UNPEELABLE;
                 } else {
+                    if (verbose) {
+                        std::cerr << "[Verbose] Intersection size = " << intersection_size << "\n";
+                        std::cerr << "[Verbose] Minuend size = " << m_size << "\n";
+                        std::cerr << "[Verbose] Subtrahend size = " << s_size << "\n";
+                        std::cerr << "[Verbose] Union size = " << m_size + s_size - intersection_size << "\n";
+                    }
                     double j = double(intersection_size) / double(m_size + s_size - intersection_size);
                     std::cout << j;
                 }
@@ -141,7 +151,7 @@ int diff_main(const argparse::ArgumentParser& args)
     }
 
     if (args.is_used("--check")) {
-        // if (not err) {
+        if (not err) {
             auto temporary_ranges = std::vector{std::make_pair(p.cbegin(), p.cend()), std::make_pair(n.cbegin(), n.cend())};
             emem::append_iterator iblt_itr(temporary_ranges);
             std::vector<kmer_t> iblt_diff;
@@ -156,17 +166,24 @@ int diff_main(const argparse::ArgumentParser& args)
                 ++iblt_itr;
             }
             std::sort(iblt_diff.begin(), iblt_diff.end());
-            // for (auto itr = symmetric_difference.cbegin(); itr != symmetric_difference.cend(); ++itr) {
-            //     auto v = *itr;
-            //     auto* v_ptr = reinterpret_cast<uint8_t*>(&v);
-            //     dump_byte_vec(v_ptr, sizeof(decltype(v)));
-            //     std::cerr << "\n";
-            // }
-            // for(auto v : iblt_diff) {
-            //     auto* v_ptr = reinterpret_cast<uint8_t*>(&v);
-            //     dump_byte_vec(v_ptr, sizeof(decltype(v)));
-            //     std::cerr << "\n";
-            // }
+            FILE* td = fopen("true_diff.txt", "w");
+            for (auto itr = symmetric_difference.cbegin(); itr != symmetric_difference.cend(); ++itr) {
+                auto v = *itr;
+                auto* v_ptr = reinterpret_cast<uint8_t*>(&v);
+                dump_byte_vec(td, v_ptr, sizeof(decltype(v)));
+                fprintf(td, "\n");
+            }
+            fclose(td);
+            if (verbose) std::cerr << "[Verbose] True difference size = " << symmetric_difference.size() << std::endl;
+
+            FILE* md = fopen("iblt_diff.txt", "w");
+            for(auto v : iblt_diff) {
+                auto* v_ptr = reinterpret_cast<uint8_t*>(&v);
+                dump_byte_vec(md, v_ptr, sizeof(decltype(v)));
+                fprintf(md, "\n");
+            }
+            fclose(md);
+            if (verbose) std::cerr << "[Verbose] iblt difference size = " << iblt_diff.size() << std::endl;
 
             bool ok = (symmetric_difference.size() == iblt_diff.size());
             auto isd = iblt_diff.cbegin();
@@ -177,9 +194,9 @@ int diff_main(const argparse::ArgumentParser& args)
             if (ok) std::cerr << "Everything is OK";
             else std::cerr << "FAILED";
             std::cerr << std::endl;
-        // } else {
-        //     std::cerr << "Unable to check due to unpeelable sketch\n";
-        // }
+        } else {
+            std::cerr << "Unable to check due to unpeelable sketch\n";
+        }
     }
 
     return 0;
@@ -200,7 +217,7 @@ argparse::ArgumentParser get_parser_diff()
         .default_value("");
     parser.add_argument("-l", "--list")
         .help("List IBLT to file. Use '.' for stdout");
-    parser.add_argument("-c", "--check")
+    parser.add_argument("-C", "--check")
         .help("Original fasta files used to build the two IBLTs (only syncmers are supported)")
         .nargs(2);
     parser.add_argument("-z")
