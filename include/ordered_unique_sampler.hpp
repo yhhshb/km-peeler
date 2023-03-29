@@ -2,6 +2,8 @@
 #define ORDERED_UNIQUE_SAMPLER_HPP
 
 #include <vector>
+#include <optional>
+#include <mutex>
 
 namespace sampler {
 
@@ -32,6 +34,7 @@ class ordered_unique_sampler
                 ordered_unique_sampler const& parent_sampler;
                 Iterator itr_start;
                 value_type buffer;
+                std::size_t unique_count;
 
                 friend bool operator==(const_iterator const& a, const_iterator const& b) 
                 {
@@ -44,10 +47,15 @@ class ordered_unique_sampler
         ordered_unique_sampler(Iterator const& start, Iterator const& stop);
         const_iterator cbegin() const;
         const_iterator cend() const;
+        const_iterator begin() const;
+        const_iterator end() const;
+        std::optional<std::size_t> size() const;
 
     private:
         Iterator const itr_start;
         Iterator const itr_stop;
+        mutable std::optional<std::size_t> _size;
+        mutable std::mutex size_guard;
 
         friend bool operator==(ordered_unique_sampler const& a, ordered_unique_sampler const& b)
         {
@@ -59,7 +67,7 @@ class ordered_unique_sampler
 
 template <class Iterator>
 ordered_unique_sampler<Iterator>::ordered_unique_sampler(Iterator const& start, Iterator const& stop)
-    : itr_start(start), itr_stop(stop)
+    : itr_start(start), itr_stop(stop), _size(std::nullopt)
 {}
 
 template <class Iterator>
@@ -75,8 +83,26 @@ typename ordered_unique_sampler<Iterator>::const_iterator ordered_unique_sampler
 }
 
 template <class Iterator>
+typename ordered_unique_sampler<Iterator>::const_iterator ordered_unique_sampler<Iterator>::begin() const
+{
+    return cbegin();
+}
+
+template <class Iterator>
+typename ordered_unique_sampler<Iterator>::const_iterator ordered_unique_sampler<Iterator>::end() const
+{
+    return cend();
+}
+
+template <class Iterator>
+std::optional<std::size_t> ordered_unique_sampler<Iterator>::size() const
+{
+    return _size;
+}
+
+template <class Iterator>
 ordered_unique_sampler<Iterator>::const_iterator::const_iterator(ordered_unique_sampler const& sampler, Iterator const& start) 
-    : parent_sampler(sampler), itr_start(start)
+    : parent_sampler(sampler), itr_start(start), unique_count(0)
 {}
 
 template <class Iterator>
@@ -89,7 +115,16 @@ template <class Iterator>
 typename ordered_unique_sampler<Iterator>::const_iterator const& ordered_unique_sampler<Iterator>::const_iterator::operator++()
 {
     auto prev = *itr_start;
-    while(itr_start != parent_sampler.itr_stop and prev == *itr_start) ++itr_start;
+    bool inc = false;
+    while(itr_start != parent_sampler.itr_stop and prev == *itr_start) {
+        ++itr_start;
+        inc = true;
+    }
+    if (inc) ++unique_count;
+    if (itr_start == parent_sampler.itr_stop) {
+        std::lock_guard<std::mutex> size_update(parent_sampler.size_guard);
+        parent_sampler._size = unique_count;
+    }
     return *this;
 }
 

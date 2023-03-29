@@ -156,6 +156,7 @@ file<T>& file<T>::operator=(file const& source)
 {
     file copy = file(source);
     move(copy);
+    return *this;
 }
 
 template <typename T>

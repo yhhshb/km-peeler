@@ -24,7 +24,7 @@ def jaccard_experiment_main(args):
     assert 0 <= args.z <= args.k
     assert 3 <= args.repetitions <= 7
     assert (args.query_number != None and args.query_number >= 0) or (args.query_fraction != None and 0 <= args.query_fraction <= 1)
-    assert args.sketch_size >= 0
+    # assert args.sketch_size >= 0
     assert args.input_folder.exists() and args.input_folder.is_dir()
     assert args.tmp_dir.exists() and args.tmp_dir.is_dir()
     wdir = args.tmp_dir
@@ -55,10 +55,10 @@ def jaccard_experiment_main(args):
     z = args.z
     r = args.repetitions
     eps = args.epsilon
-    s = mash_wrapper.get_size_from_byte_size(args.sketch_size, k) # args.sketch_size is in Bytes
-    n = kmp_wrapper.get_maximum_difference_from_byte_size(args.sketch_size, k, r, eps)
-    if s == 0: raise RuntimeError("minHash sketches of size 0 given the current parameters")
-    if n == 0: raise RuntimeError("IBF sketches of size 0 given the current parameters")
+    # s = mash_wrapper.get_size_from_byte_size(args.sketch_size, k) # args.sketch_size is in Bytes
+    
+    # if s == 0: raise RuntimeError("minHash sketches of size 0 given the current parameters")
+    # if n == 0: raise RuntimeError("IBF sketches of size 0 given the current parameters")
     # sys.stderr.write("mash s = {}, kmp n = {} (--> sketch size = {})\n".format(s, n, kmp_wrapper.get_bit_size(n, k, r, eps)/8))
 
     # partition file set into query (Q) and reference (R)
@@ -76,6 +76,7 @@ def jaccard_experiment_main(args):
     # Count files using KMC
     sys.stderr.write("Build KMC databases and compute pairwise exact Jaccard\n")
     _ = kmc_wrapper.kmc_count_folder(args.input_folder, kmc_dir, [k], kmc_tmp_dir, args.max_ram, False, args.canonical, args.force_kmc)
+    number_of_expected_kmer_differences = 0
     if args.force_kmc or not pathlib.Path(tmp_kmc_file).exists():
         with open(tmp_kmc_file, "w") as kmchandle:
             kmchandle.write("reference,query,exj,exn\n")
@@ -84,14 +85,24 @@ def jaccard_experiment_main(args):
                     _, _, _, _, refkmc = kmc_wrapper.get_kmc_paths(k, reference, kmc_dataset_dir) #retrieve reference file name
                     _, _, _, _, qrykmc = kmc_wrapper.get_kmc_paths(k, query, kmc_dataset_dir) #retrieve query file name
                     exj, _, exact_n = kmc_wrapper.kmc_jaccard(cws_executable, qrykmc, refkmc) # ignore weighted jaccard and true symmetric difference size
+                    number_of_expected_kmer_differences = max(number_of_expected_kmer_differences, exact_n)
                     kmchandle.write("{},{},{},{}\n".format(reference, query, exj, exact_n))
+    number_of_expected_syncmer_differences = number_of_expected_kmer_differences / ((args.k - args.z + 1) / 2)
+
+    # ------------------------ data-driven memory estimation ------------------------
+    n = number_of_expected_syncmer_differences
+    mem = int(kmp_wrapper.get_bit_size(n, args.k, args.repetitions, args.epsilon) / 8)
+    # --------------------------------------------------------------------------------
 
     # Build MASH sketches on input sequences
+    s = mash_wrapper.get_size_from_byte_size(mem, k) # args.sketch_size is in Bytes
+    if s == 0: raise RuntimeError("minHash sketches of size 0 given the current parameters")
     sys.stderr.write("Mash estimations\n")
     mash_wrapper.mash_sketch(reference_set, mash_ref, k, s, args.seed, args.canonical, args.force_mash)
     mash_wrapper.mash_dist(mash_ref.with_suffix(".msh"), query_set, k, s, args.seed, tmp_mash_file, args.force_mash)
 
     # sketch using kmp
+    # n = kmp_wrapper.get_maximum_difference_from_byte_size(args.sketch_size, k, r, eps)
     sys.stderr.write("Build kmp sketches and compute Jaccard approximations\n")
     header_names = list()
     for sampling_rate in args.sampling_rates:
@@ -111,7 +122,7 @@ def jaccard_experiment_main(args):
                         reference_name = kmp_dir.joinpath(kmp_wrapper.get_outname(reference))
                         sync_ibfj = kmp_wrapper.pairwise_jaccard(kmp_executable, reference_name, query_name)
                         sync_ibfjs.append(sync_ibfj)
-                    kmphandle.write("{},{},{},{},{},{}\n".format(reference, query, args.sketch_size, s, n, ','.join(map(str, sync_ibfjs))))
+                    kmphandle.write("{},{},{},{},{},{}\n".format(reference, query, mem, s, n, ','.join(map(str, sync_ibfjs))))
     
     # [Post-processing] join results
     kmc_df = pd.read_csv(tmp_kmc_file, sep=",")
@@ -128,28 +139,34 @@ def extended_syncmers_experiment_main(args):
     assert kmp_executable.exists()
     assert 0 < args.k <= 32
     assert 0 <= args.z <= args.k
-    assert args.extension > 0
+    # assert args.extension > 0
     assert 3 <= args.repetitions <= 7
     assert args.sketch_size >= 0
     assert args.first.exists() and args.second.is_file()
     assert args.tmp_dir.exists() and args.tmp_dir.is_dir()
-    ek = args.extension + args.k
+    extension = args.k - args.z
+    ek = extension + args.k
     assert ek <= 32
 
     wdir = args.tmp_dir
     extkmp_dir = wdir.joinpath("extended_syncmers_ibf")
     os.makedirs(extkmp_dir, exist_ok=True)
     n = kmp_wrapper.get_maximum_difference_from_byte_size(args.sketch_size, ek, args.repetitions, args.epsilon)
+    sys.stderr.write("[Info] n = {}\n".format(n))
 
     random.seed(args.seed)
-    tmp_i_sketch = wdir.joinpath(essentials.get_random_name("iblt.bin"))
-    kmp_wrapper.sketch(kmp_executable, args.first, tmp_i_sketch, n, ek, args.z, args.repetitions, args.epsilon, args.seed, args.canonical, wdir, args.max_ram)
-    tmp_j_sketch = wdir.joinpath(essentials.get_random_name("iblt.bin"))
-    kmp_wrapper.sketch(kmp_executable, args.second, tmp_j_sketch, n, ek, args.z, args.repetitions, args.epsilon, args.seed, args.canonical, wdir, args.max_ram)
-    tmp_fulli_sketch = wdir.joinpath(essentials.get_random_name("iblt.bin"))
-    kmp_wrapper.sketch(kmp_executable, args.first, tmp_fulli_sketch, n, args.k, args.z, args.repetitions, args.epsilon, args.seed, args.canonical, wdir, args.max_ram)
-    tmp_fullj_sketch = wdir.joinpath(essentials.get_random_name("iblt.bin"))
-    kmp_wrapper.sketch(kmp_executable, args.second, tmp_fullj_sketch, n, args.k, args.z, args.repetitions, args.epsilon, args.seed, args.canonical, wdir, args.max_ram)
+    tmp_i_sketch = wdir.joinpath(essentials.get_random_name("_minuend_iblt.bin"))
+    tmp_i_logname = wdir.joinpath("minuend_log.txt") if args.log else ""
+    kmp_wrapper.sketch(kmp_executable, args.first, tmp_i_sketch, n, args.k, args.z, extension, args.repetitions, args.epsilon, args.seed, args.canonical, wdir, args.max_ram, tmp_i_logname)
+    tmp_j_sketch = wdir.joinpath(essentials.get_random_name("_subtrahend_iblt.bin"))
+    tmp_j_logname = wdir.joinpath("subtrahend_log.txt") if args.log else ""
+    kmp_wrapper.sketch(kmp_executable, args.second, tmp_j_sketch, n, args.k, args.z, extension, args.repetitions, args.epsilon, args.seed, args.canonical, wdir, args.max_ram, tmp_j_logname)
+    tmp_fulli_sketch = wdir.joinpath(essentials.get_random_name("_mcheck_iblt.bin"))
+    tmp_fulli_logname = wdir.joinpath("mcheck_log.txt") if args.log else ""
+    kmp_wrapper.sketch(kmp_executable, args.first, tmp_fulli_sketch, n, args.k, args.k, 0, args.repetitions, args.epsilon, args.seed, args.canonical, wdir, args.max_ram, tmp_fulli_logname)
+    tmp_fullj_sketch = wdir.joinpath(essentials.get_random_name("_scheck_iblt.bin"))
+    tmp_fullj_logname = wdir.joinpath("scheck_log.txt") if args.log else ""
+    kmp_wrapper.sketch(kmp_executable, args.second, tmp_fullj_sketch, n, args.k, args.k, 0, args.repetitions, args.epsilon, args.seed, args.canonical, wdir, args.max_ram, tmp_fullj_logname)
 
     ok = kmp_wrapper.check_enhanced_extended_syncmers(kmp_executable, tmp_i_sketch, tmp_j_sketch, tmp_fulli_sketch, tmp_fullj_sketch, args.max_ram, args.first, args.second)
     with open(args.output_csv, "a") as ohandle:
@@ -185,7 +202,7 @@ def parser_init():
     parser_jaccard.add_argument("-c", "--canonical", help="activate canonical k-mers", action="store_true")
     parser_jaccard.add_argument("-r", "--repetitions", help="number of repetitions in the IBLTs", type=int, default=4)
     parser_jaccard.add_argument("-e", "--epsilon", help="epsilon parameter of IBLTs", type=float, default=0)
-    parser_jaccard.add_argument("-m", "--sketch-size", help="sketch size in Bytes for both minHashes and IBFs", type=int, required=True)
+    # parser_jaccard.add_argument("-m", "--sketch-size", help="sketch size in Bytes for both minHashes and IBFs", type=int, required=True)
     query_option_parser = parser_jaccard.add_mutually_exclusive_group(required = True)
     query_option_parser.add_argument("-q", "--query-number", help="number of randomly selected sequences to be used as queries (disables -f option). 0 use all sequences (all-vs-all).", type=int)
     query_option_parser.add_argument("-f", "--query-fraction", help="fraction of input sequences to be considered as queries (disables -q option). 0 use all sequences (all-vs-all).", type=float)
@@ -201,7 +218,7 @@ def parser_init():
     parser_extended.add_argument("-j", "--second", help="second fasta file", type=pathlib.Path, required=True)
     parser_extended.add_argument("-o", "--output-csv", help="output csv file to append to", type=pathlib.Path, required=True)
     parser_extended.add_argument("-k", help="k-mer length", type=int, required=True)
-    parser_extended.add_argument("-x", "--extension", help="number of bases added to the right of each k-mer", type=int, required=True)
+    # parser_extended.add_argument("-x", "--extension", help="number of bases added to the right of each k-mer", type=int, required=True)
     parser_extended.add_argument("-z", help="syncmer selection parameter when using syncmers", type=int, required=True)
     parser_extended.add_argument("-c", "--canonical", help="activate canonical k-mers", action="store_true")
     parser_extended.add_argument("-r", "--repetitions", help="number of repetitions in the IBLTs", type=int, default=4)
@@ -210,6 +227,7 @@ def parser_init():
     parser_extended.add_argument("-s", "--seed", help="random seed [42]", type=int, default=42)
     parser_extended.add_argument("-M", "--max-ram", help="maximum resident memory (GB) [4]", type=int, default=4)
     parser_extended.add_argument("-d", "--tmp-dir", help="folder where temporary files are stored", type=pathlib.Path, required=True)
+    parser_extended.add_argument("-l", "--log", help="log inserted k-mers to each file", action="store_true")
 
     return parser
 

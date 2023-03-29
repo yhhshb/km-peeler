@@ -41,6 +41,8 @@ int build_main(const argparse::ArgumentParser& args)
     uint64_t max_ram_bytes = max_ram * 1000000000ULL;
     bool canonical = args.get<bool>("--canonical");
     bool verbose = args.get<bool>("--verbose");
+    std::string log_filename = args.get<std::string>("--log");
+    std::ofstream log_file;
 
     std::size_t k_max = (sizeof(kmer_t) * 8 / 2);
     if (k == 0) throw std::invalid_argument("k == 0");
@@ -77,15 +79,23 @@ int build_main(const argparse::ArgumentParser& args)
         std::cerr << "Part 2: found " << kmer_vector.size() << " syncmers\n";
         std::cerr << iblt << "\n\n";
     }
+    if (log_filename != "") {
+        log_file.open(log_filename, std::ofstream::out);
+    }
     sampler::ordered_unique_sampler unique_kmers(kmer_vector.cbegin(), kmer_vector.cend());
     std::size_t unique_kmers_size = 0;
     for (auto itr = unique_kmers.cbegin(); itr != unique_kmers.cend(); ++itr) {
         auto val = *itr;
         auto vptr = reinterpret_cast<uint8_t*>(&val);
         kmp::little2big(vptr, sizeof(val));
+        if (log_file.is_open()) {
+            kmp::print_byte_vec(log_file, vptr, sizeof(val));
+            log_file << "\n";
+        }
         iblt.insert(vptr, sizeof(val)); // FIXME hide endian check inside insert
         ++unique_kmers_size;
     }
+    if (log_file.is_open()) log_file.close();
     if (verbose) std::cerr << "Found " << unique_kmers_size << " unique syncmers\n";
     std::cerr << "Written IBLT of " << io::store(iblt, output_filename) << " Bytes\n";
 
@@ -161,6 +171,9 @@ argparse::ArgumentParser get_parser_build()
         .help("increase output verbosity")
         .default_value(false)
         .implicit_value(true);
+    parser.add_argument("-l", "--log")
+        .help("optional log file for debugging")
+        .default_value(std::string(""));
     return parser;
 }
 

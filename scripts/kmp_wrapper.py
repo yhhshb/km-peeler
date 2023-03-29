@@ -41,7 +41,7 @@ def get_maximum_difference_from_byte_size(byte_size: int, k: int, r: int, epsilo
         i = (i + 1) % 3
     return new_guess
 
-def sketch(executable, input_fastx: str, output_sketch: str, n: int, k: int, z: str, r: int, epsilon: float, seed: int, canonical: bool, tmp_dir, max_ram: int):
+def sketch(executable, input_fastx: str, output_sketch: str, n: int, k: int, z: int, x: int, r: int, epsilon: float, seed: int, canonical: bool, tmp_dir, max_ram: int, log_file: str):
     assert executable
     assert input_fastx
     assert output_sketch
@@ -59,12 +59,14 @@ def sketch(executable, input_fastx: str, output_sketch: str, n: int, k: int, z: 
     n_opt = ["-n", str(n)]
     k_opt = ["-k", str(k)]
     z_opt = ["-z", str(z)]
+    x_opt = ["-x", str(x)]
     r_opt = ["-r", str(r)]
     epsilon_opt = ["-e", str(epsilon)]
     seed_opt = ["-s", str(seed)]
     canon_opt = ["-c"] if canonical else []
     tmp_opt = ["-d", tmp_dir]
-    command = build + input_opt + output_opt + n_opt + k_opt + z_opt + r_opt + epsilon_opt + seed_opt + canon_opt + tmp_opt
+    logging_opt = ["--log", log_file] if log_file else []
+    command = build + input_opt + output_opt + n_opt + k_opt + z_opt + x_opt + r_opt + epsilon_opt + seed_opt + canon_opt + tmp_opt + logging_opt
     out = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if out.returncode != 0: sys.stderr.write("ibltseq exited with error {}\n".format(out.returncode))
 
@@ -90,7 +92,7 @@ def sketch_folder(executable, input_folder, output_folder, n: int, k: int, z: in
     for fname in fastx_files:
         oname = output_folder.joinpath(get_outname(fname))
         if (force or not oname.exists()):
-            sketch(executable, fname, oname, n, k, z, r, epsilon, seed, canonical, tmp_dir, max_ram)
+            sketch(executable, fname, oname, n, k, z, 0, r, epsilon, seed, canonical, tmp_dir, max_ram, "")
 
 def pairwise_jaccard(executable, a, b) -> str:
     out = subprocess.run([executable, "diff", str(a), str(b), "-j", "."], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -101,8 +103,8 @@ def check_enhanced_extended_syncmers(executable, a, b, ecc_a, ecc_b, max_ram: in
     out = subprocess.run([executable, "correct", a, ecc_a, b, ecc_b, "-m", str(max_ram), "--check", A, B], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     msg = out.stderr.decode("utf-8")
     if out.returncode != 0: 
+        # sys.stderr.write(msg)
         raise RuntimeError("Unable to remove false positives")
-    sys.stderr.write(msg)
     return msg.find("OK") == (len(msg) - 3)
 
 def sketch_each_sequence(executable, algo: str, input_fastx, output_folder, k: int, m: str, n: int, r: int, epsilon: float, seed: int):

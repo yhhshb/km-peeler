@@ -88,7 +88,7 @@ class external_memory_vector : public std::conditional<sorted, sorted_base<T>, u
                 const_iterator();
                 const_iterator(external_memory_vector<T, sorted> const* vec);
                 T const& operator*() const;
-                void operator++();
+                const_iterator const& operator++();
                 bool operator==(const_iterator const& other) const;
                 bool operator!=(const_iterator const& other) const;
 
@@ -298,10 +298,11 @@ external_memory_vector<T, sorted>::const_iterator::operator*() const
 }
 
 template <typename T, bool sorted>
-void 
+typename external_memory_vector<T, sorted>::const_iterator const& 
 external_memory_vector<T, sorted>::const_iterator::operator++() 
 {
     advance_heap_head();
+    return *this;
 }
 
 template <typename T, bool sorted>
