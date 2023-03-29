@@ -90,7 +90,7 @@ def jaccard_experiment_main(args):
     else:
         kmc_df = pd.read_csv(tmp_kmc_file, sep=",")
         number_of_expected_kmer_differences = kmc_df["exn"].max()
-    number_of_expected_syncmer_differences = number_of_expected_kmer_differences / ((args.k - args.z + 1) / 2)
+    number_of_expected_syncmer_differences = int(number_of_expected_kmer_differences / ((args.k - args.z + 1) / 2))
 
     # ------------------------ data-driven memory estimation ------------------------
     n = number_of_expected_syncmer_differences
