@@ -23,18 +23,13 @@ def jaccard_postprocessing_main(args):
             rate = int(col.replace("syncj r=", ""))
             sampling_rates.append(rate)
 
-    print(all)
-    size_before = all.shape[0]
-    all = all[pd.to_numeric(all['syncj r=1'], errors='coerce').notnull()]
-    all[['syncj r=1']] = all[['syncj r=1']].apply(pd.to_numeric)
-    size_after = all.shape[0]
-    print("Failed IBLTs: {}".format(size_before - size_after))
-
     syncmers_columns = list()
     for rate in sampling_rates:
-        col = r"syncmers $\eta$={}".format(rate)
-        all[col] = (all["syncj r={}".format(rate)] - all["exj"]).abs()
-        syncmers_columns.append(col)
+        abs_err_col = r"syncmers $\eta$={}".format(rate)
+        iblt_col = "syncj r={}".format(rate)
+        all[iblt_col] = pd.to_numeric(all[iblt_col], errors="coerce")
+        all[abs_err_col] = (all[iblt_col] - all["exj"]).abs()
+        syncmers_columns.append(abs_err_col)
     nandf = all[syncmers_columns].rename(columns={"size":xname}).isnull()
     nandf[xname] = all["size"]
     all.dropna(inplace=True)

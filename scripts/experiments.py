@@ -87,6 +87,9 @@ def jaccard_experiment_main(args):
                     exj, _, exact_n = kmc_wrapper.kmc_jaccard(cws_executable, qrykmc, refkmc) # ignore weighted jaccard and true symmetric difference size
                     number_of_expected_kmer_differences = max(number_of_expected_kmer_differences, exact_n)
                     kmchandle.write("{},{},{},{}\n".format(reference, query, exj, exact_n))
+    else:
+        kmc_df = pd.read_csv(tmp_kmc_file, sep=",")
+        number_of_expected_kmer_differences = kmc_df["exn"].max()
     number_of_expected_syncmer_differences = number_of_expected_kmer_differences / ((args.k - args.z + 1) / 2)
 
     # ------------------------ data-driven memory estimation ------------------------
