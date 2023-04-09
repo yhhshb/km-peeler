@@ -48,6 +48,8 @@ class kmer_view
         kmer_view(std::string const& contig, uint8_t k, bool canonical = false) noexcept;
         const_iterator cbegin() const;
         const_iterator cend() const noexcept;
+        const_iterator begin() const;
+        const_iterator end() const noexcept;
         uint8_t get_k() const noexcept;
 
     private:
@@ -83,6 +85,20 @@ typename kmer_view<KmerType>::const_iterator
 kmer_view<KmerType>::cend() const noexcept
 {
     return const_iterator(this, 0);
+}
+
+template <typename KmerType>
+typename kmer_view<KmerType>::const_iterator 
+kmer_view<KmerType>::begin() const
+{
+    return cbegin();
+}
+
+template <typename KmerType>
+typename kmer_view<KmerType>::const_iterator 
+kmer_view<KmerType>::end() const noexcept
+{
+    return cend();
 }
 
 template <typename KmerType>

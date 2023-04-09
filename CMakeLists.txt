@@ -39,11 +39,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(argparse)
 
-set(LPHASH_SOURCES
+set(KMP_SOURCES
   src/build.cpp
   src/diff.cpp
   src/correct.cpp
   src/dump.cpp
+  src/bias.cpp
   src/io.cpp
   src/hash.cpp
   src/MurmurHash3.cpp
@@ -58,7 +59,7 @@ set(CWS_SOURCES
   src/MurmurHash3.cpp
 )
 
-add_executable(kmp src/kmp.cpp ${LPHASH_SOURCES})
+add_executable(kmp src/kmp.cpp ${KMP_SOURCES})
 target_link_libraries(kmp argparse z)
 add_executable(cws scripts/kmc_extra/cws.cpp ${CWS_SOURCES})
 target_link_libraries(cws argparse)
@@ -73,3 +74,5 @@ target_link_libraries(cws argparse)
 # target_link_libraries(kv_test argparse z)
 # add_executable(jaccard_test tests/jaccard.cpp)
 # target_link_libraries(jaccard_test argparse z)
+# add_executable(rndseq tests/rndseq.cpp)
+# target_link_libraries(rndseq argparse)

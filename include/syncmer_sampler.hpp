@@ -36,11 +36,19 @@ class syncmer_sampler
                     return (a.parent_sampler == b.parent_sampler) and same_start;
                 };
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
+
+                template <typename T>
+                T optional_unwrap(T const& val) const noexcept {return val;}
+
+                template <typename T>
+                T optional_unwrap(std::optional<T> const& opt) const noexcept {return *opt;}
         };
 
         syncmer_sampler(Iterator const& start, Iterator const& stop, PropertyExtractor const& extractor, uint16_t start_offset, uint16_t end_offset);
         const_iterator cbegin() const;
         const_iterator cend() const;
+        const_iterator begin() const {return cbegin();};
+        const_iterator end() const {return cend();};
         std::pair<uint16_t, uint16_t> get_offsets() const;
 
     private:
@@ -95,7 +103,7 @@ typename syncmer_sampler<Iterator, PropertyExtractor>::const_iterator::value_typ
 syncmer_sampler<Iterator, PropertyExtractor>::const_iterator::operator*() const
 {
     assert(*itr_start);
-    return (**itr_start);
+    return optional_unwrap(*itr_start);
 }
 
 template <class Iterator, typename PropertyExtractor>
