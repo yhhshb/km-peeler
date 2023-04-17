@@ -5,7 +5,7 @@
 #include <cassert>
 
 #include "../include/utils.hpp"
-#include "../include/constants.hpp"
+#include "../bundled/biolib/include/constants.hpp"
 
 #include <iostream>
 

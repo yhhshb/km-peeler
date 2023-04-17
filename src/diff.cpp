@@ -4,13 +4,13 @@ extern "C" {
 }
 
 #include <array>
+#include "../bundled/biolib/include/external_memory_vector.hpp"
+#include "../bundled/biolib/include/kmer_view.hpp"
+#include "../bundled/biolib/include/syncmer_sampler.hpp"
+#include "../bundled/biolib/include/ordered_unique_sampler.hpp"
+#include "../bundled/biolib/include/io.hpp"
 #include "../include/diff.hpp"
 #include "../include/compile_constants.hpp"
-#include "../include/external_memory_vector.hpp"
-#include "../include/kmer_view.hpp"
-#include "../include/syncmer_sampler.hpp"
-#include "../include/ordered_unique_sampler.hpp"
-#include "../include/io.hpp"
 #include "../include/IBLT.hpp"
 #include "../include/utils.hpp"
 

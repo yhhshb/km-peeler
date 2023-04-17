@@ -16,7 +16,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 if (UNIX AND NOT APPLE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
-  # Flags for PTHash:
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mbmi2 -msse4.2") # for hardware popcount and pdep
 endif()
 
@@ -31,7 +30,6 @@ if (UNIX)
   endif()
 endif()
 
-# fetch latest argparse
 include(FetchContent)
 FetchContent_Declare(
     argparse
@@ -40,39 +38,26 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(argparse)
 
 set(KMP_SOURCES
+  bundled/biolib/src/io.cpp
+  bundled/biolib/src/hash.cpp
+  bundled/biolib/bundled/MurmurHash3.cpp
   src/build.cpp
   src/diff.cpp
   src/correct.cpp
   src/dump.cpp
   src/bias.cpp
-  src/io.cpp
-  src/hash.cpp
-  src/MurmurHash3.cpp
   src/IBLT.cpp
   src/utils.cpp
 )
 
 set(CWS_SOURCES
+  bundled/biolib/bundled/MurmurHash3.cpp
   scripts/kmc_extra/kmc_api/kmc_file.cpp
   scripts/kmc_extra/kmc_api/kmer_api.cpp
   scripts/kmc_extra/kmc_api/mmer.cpp
-  src/MurmurHash3.cpp
 )
 
 add_executable(kmp src/kmp.cpp ${KMP_SOURCES})
 target_link_libraries(kmp argparse z)
 add_executable(cws scripts/kmc_extra/cws.cpp ${CWS_SOURCES})
 target_link_libraries(cws argparse)
-
-# Tests------------------------------------------------------------------------
-# add_executable(emv_test tests/emv.cpp)
-# target_link_libraries(emv_test argparse)
-# add_executable(ous_test tests/ous.cpp)
-# target_link_libraries(ous_test argparse)
-# add_executable(traits_examples tests/traits_examples.cpp src/MurmurHash3.cpp)
-# add_executable(kv_test tests/kv.cpp)
-# target_link_libraries(kv_test argparse z)
-# add_executable(jaccard_test tests/jaccard.cpp)
-# target_link_libraries(jaccard_test argparse z)
-# add_executable(rndseq tests/rndseq.cpp)
-# target_link_libraries(rndseq argparse)

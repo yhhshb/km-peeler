@@ -1,15 +1,15 @@
 #include <tuple>
 #include "../include/bias.hpp"
-#include "../include/external_memory_vector.hpp"
-#include "../include/ordered_unique_sampler.hpp"
-#include "../include/kmer_view.hpp"
-#include "../include/minimizer_sampler.hpp"
-#include "../include/syncmer_sampler.hpp"
-#include "../include/hash_sampler.hpp"
-#include "../include/sequence_generator.hpp"
-#include "../include/sequence_mutator.hpp"
-#include "../include/jaccard.hpp"
-#include "../include/hash.hpp"
+#include "../bundled/biolib/include/external_memory_vector.hpp"
+#include "../bundled/biolib/include/ordered_unique_sampler.hpp"
+#include "../bundled/biolib/include/kmer_view.hpp"
+#include "../bundled/biolib/include/minimizer_sampler.hpp"
+#include "../bundled/biolib/include/syncmer_sampler.hpp"
+#include "../bundled/biolib/include/hash_sampler.hpp"
+#include "../bundled/biolib/include/sequence_generator.hpp"
+#include "../bundled/biolib/include/sequence_mutator.hpp"
+#include "../bundled/biolib/include/jaccard.hpp"
+#include "../bundled/biolib/include/hash.hpp"
 
 namespace kmp {
 
@@ -99,7 +99,7 @@ std::tuple<double, double, double, double> test_sampling(ug_t& generator, uint64
         exact = static_cast<double>(num) / den;
 
         { // syncmer jaccard
-            uint16_t offset = (k + 1) / 2;
+            uint16_t offset = (k - z + 1) / 2;
             hash::minimizer_position_extractor mmp_extractor(k, z);
             sampler::syncmer_sampler A_sync(unique_kmers_A.cbegin(), unique_kmers_A.cend(), mmp_extractor, offset, offset);
             sampler::syncmer_sampler B_sync(unique_kmers_B.cbegin(), unique_kmers_B.cend(), mmp_extractor, offset, offset);

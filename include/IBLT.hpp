@@ -6,7 +6,7 @@
 #include <string>
 #include <stack>
 #include <functional>
-#include "../include/hash.hpp"
+#include "../bundled/biolib/include/hash.hpp"
 
 namespace kmp {
 

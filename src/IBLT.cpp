@@ -2,7 +2,7 @@
 #include <cassert>
 
 #include "../include/IBLT.hpp"
-#include "../include/io.hpp"
+#include "../bundled/biolib/include/io.hpp"
 #include "../include/utils.hpp"
 
 #ifndef NDEBUG

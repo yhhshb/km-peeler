@@ -5,11 +5,11 @@ extern "C" {
 
 #include "../include/correct.hpp"
 #include "../include/compile_constants.hpp"
-#include "../include/external_memory_vector.hpp"
-#include "../include/ordered_unique_sampler.hpp"
+#include "../bundled/biolib/include/external_memory_vector.hpp"
+#include "../bundled/biolib/include/ordered_unique_sampler.hpp"
 #include "../include/IBLT.hpp"
 #include "../include/utils.hpp"
-#include "../include/kmer_view.hpp"
+#include "../bundled/biolib/include/kmer_view.hpp"
 #include <unordered_set>
 
 KSEQ_INIT(gzFile, gzread)

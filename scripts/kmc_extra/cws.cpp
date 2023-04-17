@@ -6,7 +6,7 @@
 #include <set>
 
 #include <argparse/argparse.hpp>
-#include "../../include/MurmurHash3.hpp"
+#include "../../bundled/biolib/bundled/MurmurHash3.hpp"
 #include "kmc_api/kmc_file.h"
 
 
