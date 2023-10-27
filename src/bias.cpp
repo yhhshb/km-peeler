@@ -1,3 +1,7 @@
+#include <zlib.h>
+extern "C" {
+    #include "../include/kseq.h"
+}
 #include <tuple>
 #include "../include/bias.hpp"
 #include "../bundled/biolib/include/external_memory_vector.hpp"
@@ -11,13 +15,39 @@
 #include "../bundled/biolib/include/jaccard.hpp"
 #include "../bundled/biolib/include/hash.hpp"
 
+KSEQ_INIT(gzFile, gzread)
+
 namespace kmp {
 
 typedef sequence::generator::nucleic<sequence::generator::packed::uniform> ug_t;
+typedef std::tuple<double, double, double, double> csv_record_t;
+typedef emem::external_memory_vector<uint64_t> exmv_t;
 
-std::tuple<double, double, double, double> test_sampling(ug_t&, uint64_t, uint64_t, uint8_t, uint8_t, double, bool, std::string, uint64_t, bool);
+int test_sampling_simulated(const argparse::ArgumentParser& parser);
+int test_sampling_real(const argparse::ArgumentParser& parser);
 
 int bias_main(const argparse::ArgumentParser& parser)
+{
+    if (parser.is_used("--input-file")) return test_sampling_real(parser);
+    else return test_sampling_simulated(parser);
+}
+
+csv_record_t test_simulated_pair(ug_t&, uint64_t, uint64_t, uint8_t, uint8_t, double, bool, std::string, uint64_t, bool);
+std::tuple<double, double, double> compute_jaccard_no_mm(exmv_t const& A, exmv_t const& B, uint8_t k, uint8_t z, bool verbose, double& sampling_rate_A, double& sampling_rate_B, std::size_t& kmer_size_A, std::size_t& kmer_size_B);
+
+void print_csv_line(std::ostream& ostrm, double exact_jaccard, double hash_based, double minimizer_based, double syncmer_based, double err_hash, double err_mm, double err_sync, std::size_t trials)
+{
+    ostrm <<
+        exact_jaccard / trials << "," << 
+        hash_based / trials << "," << 
+        minimizer_based / trials << "," << 
+        syncmer_based / trials << "," << 
+        err_hash / trials << "," << 
+        err_mm / trials << "," << 
+        err_sync /trials << "\n";
+}
+
+int test_sampling_simulated(const argparse::ArgumentParser& parser)
 {
     auto l = parser.get<uint64_t>("--length");
     auto k = parser.get<uint16_t>("-k");
@@ -34,6 +64,13 @@ int bias_main(const argparse::ArgumentParser& parser)
     if (k > 32) throw std::invalid_argument("0 <= k <= 32");
     if (z > k) throw std::invalid_argument("z <= k");
     if (max_rate < 0 or max_rate > 1) throw std::invalid_argument("0 <= --max-rate <= 1");
+
+    auto cout_buffer_save = std::cout.rdbuf();
+    std::ofstream myostrm;
+    if (parser.is_used("--output-file")) { // redirect cout
+        myostrm.open(parser.get<std::string>("--output-file"));
+        std::cout.rdbuf(myostrm.rdbuf());
+    }
     
     sequence::generator::packed::uniform uniform_sequence_generator(seed);
     sequence::generator::nucleic generator(uniform_sequence_generator);
@@ -48,7 +85,7 @@ int bias_main(const argparse::ArgumentParser& parser)
         double exc, hbc, mbc, sbc, err_hb, err_mm, err_sb, sqerr_hb, sqerr_mm, sqerr_sb;
         exc = hbc = mbc = sbc = err_hb = err_mm = err_sb = sqerr_hb = sqerr_mm = sqerr_sb = 0;
         for (std::size_t j = 0; j < trials; ++j) {
-            auto [exact, hash_based, mm_based, sync_based] = test_sampling(generator, rng(), l, k, z, mut_rate, canonical, tmp_dir, max_ram, verbose);
+            auto [exact, hash_based, mm_based, sync_based] = test_simulated_pair(generator, rng(), l, k, z, mut_rate, canonical, tmp_dir, max_ram, verbose);
             exc += exact;
             hbc += hash_based;
             mbc += mm_based;
@@ -60,39 +97,78 @@ int bias_main(const argparse::ArgumentParser& parser)
             sqerr_mm += err_mm * err_mm;
             sqerr_sb += err_sb * err_sb;
         }
-        std::cout << 
-            exc / trials << "," << 
-            hbc / trials << "," << 
-            mbc / trials << "," << 
-            sbc / trials << "," << 
-            sqerr_hb / trials << "," << 
-            sqerr_mm / trials << "," << 
-            sqerr_sb /trials << "\n";
+        print_csv_line(std::cout, exc, hbc, mbc, sbc, sqerr_hb, sqerr_mm, sqerr_sb, trials);
+            
     }
+    std::cout.rdbuf(cout_buffer_save); // restore cout
     return 0;
 }
 
-std::tuple<double, double, double, double> test_sampling(ug_t& generator, uint64_t str_gen_seed, uint64_t l, uint8_t k, uint8_t z, double mut_rate, bool canonical, std::string tmp_dir, uint64_t max_ram, bool verbose)
+int test_sampling_real(const argparse::ArgumentParser& parser)
 {
-    double exact, hash, mm, sync, sampling_rate_A, sampling_rate_B;
-    std::string original = generator.get_sequence(l);
-    wrapper::sequence_mutator mutator_view(original.begin(), original.end(), mut_rate, 0, 0);
-    std::string mutated;
-    decltype(mutator_view)::const_iterator::report_t stats;
-    for (auto itr = mutator_view.cbegin(str_gen_seed); itr != mutator_view.cend(); ++itr) {
-        if (*itr) mutated.push_back(**itr);
-        stats = itr.get_report();
-    }
-    uint64_t emem_size = max_ram / 2 == 0 ? 1000 : max_ram / 2 * 1000;
-    std::size_t kmer_size_A, kmer_size_B;
-    { // memory collection
-        emem::external_memory_vector<uint64_t> A(emem_size, tmp_dir, "SetAfull");
-        emem::external_memory_vector<uint64_t> B(emem_size, tmp_dir, "SetBfull");
-        wrapper::kmer_view<uint64_t> A_view(original, k, canonical);
-        wrapper::kmer_view<uint64_t> B_view(mutated, k, canonical);
-        for (auto itr = A_view.cbegin(); itr != A_view.cend(); ++itr) if (*itr) A.push_back(**itr);
-        for (auto itr = B_view.cbegin(); itr != B_view.cend(); ++itr) if (*itr) B.push_back(**itr);
+    // auto l = parser.get<uint64_t>("--length");
+    auto k = parser.get<uint16_t>("-k");
+    auto z = parser.get<uint16_t>("-z");
+    auto max_rate = parser.get<double>("--max-mutation-rate");
+    // auto nsteps = parser.get<uint64_t>("--steps");
+    // auto trials = parser.get<uint64_t>("--trials");
+    auto canonical = parser.get<bool>("--canonical");
+    auto tmp_dir = parser.get<std::string>("--tmp-dir");
+    // auto seed = parser.get<uint64_t>("--seed");
+    // auto max_ram = parser.get<uint64_t>("--max-ram");
+    auto verbose = parser.get<bool>("--verbose");
 
+    if (k > 32) throw std::invalid_argument("0 <= k <= 32");
+    if (z > k) throw std::invalid_argument("z <= k");
+    if (max_rate < 0 or max_rate > 1) throw std::invalid_argument("0 <= --max-rate <= 1");
+
+    auto cout_buffer_save = std::cout.rdbuf();
+    std::ofstream myostrm;
+    if (parser.is_used("--output-file")) { // redirect cout
+        myostrm.open(parser.get<std::string>("--output-file"));
+        std::cout.rdbuf(myostrm.rdbuf());
+    }
+
+    std::vector<exmv_t> files;
+    {
+        gzFile fp;
+        kseq_t* seq;
+        std::ifstream istrm(parser.get<std::string>("--input-file"));
+        std::string line;
+        while(std::getline(istrm, line)) {
+            if ((fp = gzopen(line.c_str(), "r")) == NULL) {
+                std::cerr << "Unable to open the input file " + line + "\n";
+            } else {
+                files.emplace_back(2000000, tmp_dir, line);
+                seq = kseq_init(fp);
+                while (kseq_read(seq) >= 0) {
+                    wrapper::kmer_view<uint64_t> kmers(seq->seq.s, seq->seq.l, k, canonical);
+                    for (auto itr = kmers.cbegin(); itr != kmers.cend(); ++itr) {
+                        if (*itr) files.back().push_back(**itr);
+                    }
+                }
+                if (seq) kseq_destroy(seq);
+            }
+            gzclose(fp);
+        }
+    }
+
+    double exact, hash, sync;
+    double sampling_rate_A, sampling_rate_B;
+    std::size_t kmer_size_A, kmer_size_B;
+    for (auto& file1 : files) {
+        for (auto& file2: files) {
+            std::tie(exact, hash, sync) = compute_jaccard_no_mm(file1, file2, k, z, verbose, sampling_rate_A, sampling_rate_B, kmer_size_A, kmer_size_B);
+        }
+    }
+    std::cout.rdbuf(cout_buffer_save); // restore cout
+    return 0;
+}
+
+std::tuple<double, double, double> compute_jaccard_no_mm(exmv_t const& A, exmv_t const& B, uint8_t k, uint8_t z, bool verbose, double& sampling_rate_A, double& sampling_rate_B, std::size_t& kmer_size_A, std::size_t& kmer_size_B)
+{
+    double exact, hash, sync;
+    { // memory collection
         sampler::ordered_unique_sampler unique_kmers_A(A.cbegin(), A.cend());
         sampler::ordered_unique_sampler unique_kmers_B(B.cbegin(), B.cend());
         auto [num, den, A_size, B_size] = algorithm::jaccard(unique_kmers_A.cbegin(), unique_kmers_A.cend(), unique_kmers_B.cbegin(), unique_kmers_B.cend());
@@ -125,6 +201,26 @@ std::tuple<double, double, double, double> test_sampling(ug_t& generator, uint64
         kmer_size_A = A_size; // carry-over to minimizer section
         kmer_size_B = B_size;
     } // end of memory collection
+    return std::make_tuple(exact, hash, sync);
+}
+
+// csv_record_t test_real_pair(std::string const& original, std::string& mutated, uint8_t k, uint8_t z, double mut_rate, bool canonical, std::string tmp_dir, uint64_t max_ram, bool verbose);
+csv_record_t test_actual_pair(std::string const& original, std::string& mutated, uint8_t k, uint8_t z, double mut_rate, bool canonical, std::string tmp_dir, uint64_t max_ram, bool verbose)
+{
+    double sampling_rate_A, sampling_rate_B;
+    std::size_t kmer_size_A, kmer_size_B;
+    uint64_t emem_size = max_ram / 2 == 0 ? 1000 : max_ram / 2 * 1000;
+    double exact, hash, sync;
+    {
+        exmv_t A(emem_size, tmp_dir, "SetAfull");
+        exmv_t B(emem_size, tmp_dir, "SetBfull");
+        wrapper::kmer_view<uint64_t> A_view(original, k, canonical);
+        wrapper::kmer_view<uint64_t> B_view(mutated, k, canonical);
+        for (auto itr = A_view.cbegin(); itr != A_view.cend(); ++itr) if (*itr) A.push_back(**itr);
+        for (auto itr = B_view.cbegin(); itr != B_view.cend(); ++itr) if (*itr) B.push_back(**itr);
+        std::tie(exact, hash, sync) = compute_jaccard_no_mm(A, B, k, z, verbose, sampling_rate_A, sampling_rate_B, kmer_size_A, kmer_size_B);
+    }
+    double mm;
     { // minimizer based
         emem::external_memory_vector<uint64_t> A(emem_size, tmp_dir, "SetAmm");
         emem::external_memory_vector<uint64_t> B(emem_size, tmp_dir, "SetBmm");
@@ -147,12 +243,27 @@ std::tuple<double, double, double, double> test_sampling(ug_t& generator, uint64
     return std::make_tuple(exact, hash, mm, sync);
 }
 
+std::tuple<double, double, double, double> test_simulated_pair(ug_t& generator, uint64_t str_gen_seed, uint64_t l, uint8_t k, uint8_t z, double mut_rate, bool canonical, std::string tmp_dir, uint64_t max_ram, bool verbose)
+{
+    std::string original = generator.get_sequence(l);
+    wrapper::sequence_mutator mutator_view(original.begin(), original.end(), mut_rate, 0, 0);
+    std::string mutated;
+    decltype(mutator_view)::const_iterator::report_t stats;
+    for (auto itr = mutator_view.cbegin(str_gen_seed); itr != mutator_view.cend(); ++itr) {
+        if (*itr) mutated.push_back(**itr);
+        stats = itr.get_report();
+    }
+    return test_actual_pair(original, mutated, k, z, mut_rate, canonical, tmp_dir, max_ram, verbose);
+}
+
 argparse::ArgumentParser get_parser_bias()
 {
     argparse::ArgumentParser parser("bias");
     parser.add_description("Test unbiased behaviour of (open) syncmers (minimum z-mer in the middle)");
-    // parser.add_argument("output_filename")
-    //     .help("output file name");
+    parser.add_argument("-i", "--input-file")
+        .help("input filename");
+    parser.add_argument("-o", "--output-file")
+        .help("output filename");
     parser.add_argument("-l", "--length")
         .help("sequence length")
         .scan<'i', uint64_t>()
